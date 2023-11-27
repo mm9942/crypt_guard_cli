@@ -1,5 +1,5 @@
 use pqcrypto_kyber::kyber1024::{self, *};
-use pqcrypto_traits::kem::{PublicKey, SecretKey, SharedSecret};
+use pqcrypto_traits::kem::{PublicKey, SecretKey, SharedSecret, Ciphertext};
 use hex::*;
 use std::{
     error::Error,
@@ -62,9 +62,16 @@ impl Keychain {
         Ok(())
     }
 
-    pub async fn save(&self, path: &str) -> Result<(), KeychainError> {
-        let public_key_path = format!("{}.pub", path);
-        let secret_key_path = format!("{}.sec", path);
+    pub async fn save(&self, title: &str) -> Result<(), KeychainError> {
+        let public_key_path = format!("{}/{}.pub", title, title);
+        let secret_key_path = format!("{}/{}.sec", title, title);
+        let shared_secret_path = format!("{}/{}.ss", title, title);
+        let ciphertext_path = format!("{}/{}.ct", title, title);
+
+        if !std::path::Path::new(&title).exists() {
+            let _ = std::fs::create_dir(title);
+        }
+
         fs::write(
             &public_key_path, 
             format!(
@@ -78,6 +85,22 @@ impl Keychain {
             format!(
                 "-----BEGIN PRIVATE KEY-----\n{}\n-----END PRIVATE KEY-----",
                 hex::encode(&self.secret_key.as_bytes())
+            )
+        ).map_err(KeychainError::WriteError)?;
+
+        fs::write(
+            &shared_secret_path, 
+            format!(
+                "-----BEGIN SHARED SECRET-----\n{}\n-----END SHARED SECRET-----",
+                hex::encode(&self.shared_secret.as_bytes())
+            )
+        ).map_err(KeychainError::WriteError)?;
+
+        fs::write(
+            &ciphertext_path, 
+            format!(
+                "-----BEGIN CIPHERTEXT-----\n{}\n-----END CIPHERTEXT-----",
+                hex::encode(&self.ciphertext.as_bytes())
             )
         ).map_err(KeychainError::WriteError)?;
 

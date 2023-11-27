@@ -16,4 +16,6 @@ Cargo.lock
 # For testing generated files
 keychain
 keychain.pub
+keychain.ct
+keychain.ss
 keychain.sec
