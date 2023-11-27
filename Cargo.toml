@@ -1,0 +1,13 @@
+[package]
+name = "crypt_guard"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hex = "0.4.3"
+pqcrypto = { version = "0.17.0", features = ["serialization"] }
+pqcrypto-kyber = { version = "0.8.0", features = ["serialization"] }
+pqcrypto-traits = "0.3.5"
+tokio = { version = "1.34.0", features = ["full"] }
