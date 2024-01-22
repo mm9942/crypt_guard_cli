@@ -1,0 +1,207 @@
+TARGET = Some("x86_64-unknown-linux-gnu")
+OPT_LEVEL = Some("3")
+HOST = Some("x86_64-unknown-linux-gnu")
+cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu
+CC_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=CC_x86_64_unknown_linux_gnu
+CC_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_CC
+HOST_CC = None
+cargo:rerun-if-env-changed=CC
+CC = None
+cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+CRATE_CC_NO_DEFAULTS = None
+DEBUG = Some("false")
+CARGO_CFG_TARGET_FEATURE = Some("fxsr,sse,sse2")
+cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
+CFLAGS_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=CFLAGS_x86_64_unknown_linux_gnu
+CFLAGS_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_CFLAGS
+HOST_CFLAGS = None
+cargo:rerun-if-env-changed=CFLAGS
+CFLAGS = None
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/code.o" "-c" "pqclean/crypto_kem/hqc-128/clean/code.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/fft.o" "-c" "pqclean/crypto_kem/hqc-128/clean/fft.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/gf.o" "-c" "pqclean/crypto_kem/hqc-128/clean/gf.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/gf2x.o" "-c" "pqclean/crypto_kem/hqc-128/clean/gf2x.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/hqc.o" "-c" "pqclean/crypto_kem/hqc-128/clean/hqc.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/kem.o" "-c" "pqclean/crypto_kem/hqc-128/clean/kem.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/parsing.o" "-c" "pqclean/crypto_kem/hqc-128/clean/parsing.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/reed_muller.o" "-c" "pqclean/crypto_kem/hqc-128/clean/reed_muller.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/reed_solomon.o" "-c" "pqclean/crypto_kem/hqc-128/clean/reed_solomon.c"
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/shake_ds.o" "-c" "pqclean/crypto_kem/hqc-128/clean/shake_ds.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/shake_prng.o" "-c" "pqclean/crypto_kem/hqc-128/clean/shake_prng.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-128/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/vector.o" "-c" "pqclean/crypto_kem/hqc-128/clean/vector.c"
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+cargo:rerun-if-env-changed=AR_x86_64-unknown-linux-gnu
+AR_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=AR_x86_64_unknown_linux_gnu
+AR_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_AR
+HOST_AR = None
+cargo:rerun-if-env-changed=AR
+AR = None
+cargo:rerun-if-env-changed=ARFLAGS_x86_64-unknown-linux-gnu
+ARFLAGS_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=ARFLAGS_x86_64_unknown_linux_gnu
+ARFLAGS_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_ARFLAGS
+HOST_ARFLAGS = None
+cargo:rerun-if-env-changed=ARFLAGS
+ARFLAGS = None
+running: ZERO_AR_DATE="1" "ar" "cq" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/libhqc-128_clean.a" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/code.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/fft.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/gf.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/gf2x.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/hqc.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/kem.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/parsing.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/reed_muller.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/reed_solomon.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/shake_ds.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/shake_prng.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-128/clean/vector.o"
+exit status: 0
+running: "ar" "s" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/libhqc-128_clean.a"
+exit status: 0
+cargo:rustc-link-lib=static=hqc-128_clean
+cargo:rustc-link-search=native=/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out
+TARGET = Some("x86_64-unknown-linux-gnu")
+OPT_LEVEL = Some("3")
+HOST = Some("x86_64-unknown-linux-gnu")
+cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu
+CC_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=CC_x86_64_unknown_linux_gnu
+CC_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_CC
+HOST_CC = None
+cargo:rerun-if-env-changed=CC
+CC = None
+cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+CRATE_CC_NO_DEFAULTS = None
+DEBUG = Some("false")
+CARGO_CFG_TARGET_FEATURE = Some("fxsr,sse,sse2")
+cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
+CFLAGS_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=CFLAGS_x86_64_unknown_linux_gnu
+CFLAGS_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_CFLAGS
+HOST_CFLAGS = None
+cargo:rerun-if-env-changed=CFLAGS
+CFLAGS = None
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/code.o" "-c" "pqclean/crypto_kem/hqc-192/clean/code.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/fft.o" "-c" "pqclean/crypto_kem/hqc-192/clean/fft.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/gf.o" "-c" "pqclean/crypto_kem/hqc-192/clean/gf.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/gf2x.o" "-c" "pqclean/crypto_kem/hqc-192/clean/gf2x.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/hqc.o" "-c" "pqclean/crypto_kem/hqc-192/clean/hqc.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/kem.o" "-c" "pqclean/crypto_kem/hqc-192/clean/kem.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/parsing.o" "-c" "pqclean/crypto_kem/hqc-192/clean/parsing.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/reed_muller.o" "-c" "pqclean/crypto_kem/hqc-192/clean/reed_muller.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/reed_solomon.o" "-c" "pqclean/crypto_kem/hqc-192/clean/reed_solomon.c"
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/shake_ds.o" "-c" "pqclean/crypto_kem/hqc-192/clean/shake_ds.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/shake_prng.o" "-c" "pqclean/crypto_kem/hqc-192/clean/shake_prng.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-192/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/vector.o" "-c" "pqclean/crypto_kem/hqc-192/clean/vector.c"
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+cargo:rerun-if-env-changed=AR_x86_64-unknown-linux-gnu
+AR_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=AR_x86_64_unknown_linux_gnu
+AR_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_AR
+HOST_AR = None
+cargo:rerun-if-env-changed=AR
+AR = None
+cargo:rerun-if-env-changed=ARFLAGS_x86_64-unknown-linux-gnu
+ARFLAGS_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=ARFLAGS_x86_64_unknown_linux_gnu
+ARFLAGS_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_ARFLAGS
+HOST_ARFLAGS = None
+cargo:rerun-if-env-changed=ARFLAGS
+ARFLAGS = None
+running: ZERO_AR_DATE="1" "ar" "cq" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/libhqc-192_clean.a" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/code.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/fft.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/gf.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/gf2x.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/hqc.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/kem.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/parsing.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/reed_muller.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/reed_solomon.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/shake_ds.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/shake_prng.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-192/clean/vector.o"
+exit status: 0
+running: "ar" "s" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/libhqc-192_clean.a"
+exit status: 0
+cargo:rustc-link-lib=static=hqc-192_clean
+cargo:rustc-link-search=native=/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out
+TARGET = Some("x86_64-unknown-linux-gnu")
+OPT_LEVEL = Some("3")
+HOST = Some("x86_64-unknown-linux-gnu")
+cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu
+CC_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=CC_x86_64_unknown_linux_gnu
+CC_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_CC
+HOST_CC = None
+cargo:rerun-if-env-changed=CC
+CC = None
+cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+CRATE_CC_NO_DEFAULTS = None
+DEBUG = Some("false")
+CARGO_CFG_TARGET_FEATURE = Some("fxsr,sse,sse2")
+cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
+CFLAGS_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=CFLAGS_x86_64_unknown_linux_gnu
+CFLAGS_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_CFLAGS
+HOST_CFLAGS = None
+cargo:rerun-if-env-changed=CFLAGS
+CFLAGS = None
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/code.o" "-c" "pqclean/crypto_kem/hqc-256/clean/code.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/fft.o" "-c" "pqclean/crypto_kem/hqc-256/clean/fft.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/gf.o" "-c" "pqclean/crypto_kem/hqc-256/clean/gf.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/gf2x.o" "-c" "pqclean/crypto_kem/hqc-256/clean/gf2x.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/hqc.o" "-c" "pqclean/crypto_kem/hqc-256/clean/hqc.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/kem.o" "-c" "pqclean/crypto_kem/hqc-256/clean/kem.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/parsing.o" "-c" "pqclean/crypto_kem/hqc-256/clean/parsing.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/reed_muller.o" "-c" "pqclean/crypto_kem/hqc-256/clean/reed_muller.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/reed_solomon.o" "-c" "pqclean/crypto_kem/hqc-256/clean/reed_solomon.c"
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/shake_ds.o" "-c" "pqclean/crypto_kem/hqc-256/clean/shake_ds.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/shake_prng.o" "-c" "pqclean/crypto_kem/hqc-256/clean/shake_prng.c"
+running: "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "/home/codespace/.cargo/registry/src/index.crates.io-6f17d22bba15001f/pqcrypto-internals-0.2.5/include" "-I" "pqclean/common" "-I" "pqclean/crypto_kem/hqc-256/clean" "-Wall" "-Wextra" "-o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/vector.o" "-c" "pqclean/crypto_kem/hqc-256/clean/vector.c"
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+cargo:rerun-if-env-changed=AR_x86_64-unknown-linux-gnu
+AR_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=AR_x86_64_unknown_linux_gnu
+AR_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_AR
+HOST_AR = None
+cargo:rerun-if-env-changed=AR
+AR = None
+cargo:rerun-if-env-changed=ARFLAGS_x86_64-unknown-linux-gnu
+ARFLAGS_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=ARFLAGS_x86_64_unknown_linux_gnu
+ARFLAGS_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_ARFLAGS
+HOST_ARFLAGS = None
+cargo:rerun-if-env-changed=ARFLAGS
+ARFLAGS = None
+running: ZERO_AR_DATE="1" "ar" "cq" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/libhqc-256_clean.a" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/code.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/fft.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/gf.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/gf2x.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/hqc.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/kem.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/parsing.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/reed_muller.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/reed_solomon.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/shake_ds.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/shake_prng.o" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/pqclean/crypto_kem/hqc-256/clean/vector.o"
+exit status: 0
+running: "ar" "s" "/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out/libhqc-256_clean.a"
+exit status: 0
+cargo:rustc-link-lib=static=hqc-256_clean
+cargo:rustc-link-search=native=/workspaces/RustCryptGuard/target/release/build/pqcrypto-hqc-c89e40cf832386a0/out
