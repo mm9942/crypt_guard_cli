@@ -70,6 +70,24 @@ impl Decrypt {
         Ok(data.to_vec())
     }
 
+
+    pub fn extract_encrypted_message(message: &str) -> Result<Vec<u8>, CryptError> {
+        let begin_tag = "-----BEGIN ENCRYPTED MESSAGE-----";
+        let end_tag = "-----END ENCRYPTED MESSAGE-----";
+
+        if let (Some(start), Some(end)) = (message.find(begin_tag), message.find(end_tag)) {
+            if start < end {
+                let encrypted_message = &message[start + begin_tag.len()..end].trim();
+                Ok(hex::decode(encrypted_message).unwrap())
+            } else {
+                Err(CryptError::InvalidMessageFormat)
+            }
+        } else {
+            Err(CryptError::MissingData)
+        }
+    }
+
+
     pub async fn decrypt_with_aes(data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptError> {
         let mut decrypted_data = vec![0u8; data.len()];
         let cipher = Aes256::new(GenericArray::from_slice(key));
@@ -108,9 +126,10 @@ impl Decrypt {
         let decrypted_str = String::from_utf8(decrypted_data)
             .map_err(|_| CryptError::Utf8Error)?;
         if safe {
-            let mut message_file = fs::File::create("./message.txt");
+            let message_file = fs::File::create("./message.txt");
             write!(message_file.unwrap(), "{}", &decrypted_str).unwrap();
         }
+        println!("{}", &decrypted_str);
         Ok(decrypted_str)
     }
 
@@ -139,7 +158,7 @@ impl Decrypt {
                 Ok(())
             },
             (None, Some(data)) => {
-                println!("Decrypting message...");
+                println!("Decrypting message...\n");
                 let _ = Decrypt::decrypt_msg(data, &shared_secret, hmac_key, true).await?;
                 Ok(())
             },

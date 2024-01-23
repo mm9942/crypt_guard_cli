@@ -1,4 +1,3 @@
-
 use pqcrypto_kyber::kyber1024::*;
 use pqcrypto_kyber::kyber1024;
 use pqcrypto_traits::kem::{Ciphertext, PublicKey, SecretKey, SharedSecret};
@@ -10,6 +9,8 @@ use std::{error::Error, ffi::OsStr, fmt, fs, path::Path, path::PathBuf, result::
 #[derive(Debug)]
 pub enum CryptError {
     IOError,
+    MessageExtractionError,
+    InvalidMessageFormat,
     HexError(hex::FromHexError),
     EncapsulationError,
     DecapsulationError,
@@ -33,6 +34,8 @@ impl fmt::Display for CryptError {
    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
        match self {
            CryptError::IOError => write!(f, "IO error occurred"),
+           CryptError::MessageExtractionError => write!(f, "Error extracting message"),
+           CryptError::InvalidMessageFormat => write!(f, "Invalid message format"),
            CryptError::HexError(err) => write!(f, "Hex error: {}", err),
            CryptError::EncapsulationError => write!(f, "Encapsulation error"),
            CryptError::DecapsulationError => write!(f, "Decapsulation error"),
@@ -310,6 +313,7 @@ impl Keychain {
 
         Ok(())
     }
+
 
     pub async fn load_public_key(&mut self, path: PathBuf) -> Result<kyber1024::PublicKey, CryptError> {
         let public_key_bytes = File::load(path, KeyTypes::PublicKey).await?;
