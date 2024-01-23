@@ -58,4 +58,4 @@ CryptGuard relies on the following dependencies as specified in `cargo.toml`:
 - `tokio`: Version 1.35.1 with the `full` feature for asynchronous programming.
 
 ## License
-CryptGuard is licensed under the GNU GENERAL PUBLIC LICENSE Version 3. The full license text can be found in the `LICENSE` file in the repository.
+CryptGuard is licensed under the MIT LICENSE. The full license text can be found in the `LICENSE` file in the repository.
