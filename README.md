@@ -35,11 +35,11 @@ CryptGuard is accessed through the `crypt_guard` command-line interface. Key com
    ```
 3. **Encrypt Data**:
    ```bash
-   crypt_guard encrypt -k [passphrase] -p [public key path] -f [file path] -m [message]
+   crypt_guard encrypt --pass [passphrase] -p [public key file path] -f [file path] -m [message]
    ```
 4. **Decrypt Data**:
    ```bash
-   crypt_guard decrypt -p [passphrase] -s [secret key path] -c [ciphertext path] -f [file path] -m [message]
+   crypt_guard decrypt --pass [passphrase] -s [secret key file path] -c [ciphertext path] -f [file path] -m [message]
    ```
 
 ## Dependencies
