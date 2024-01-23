@@ -1,22 +1,22 @@
-# RustCryptGuard
+# CryptGuard
 
 ## Introduction
-RustCryptGuard is a Rust-based command-line tool for encryption and decryption, leveraging the post-quantum Kyber1024 algorithm. It's designed to protect files and messages from quantum-computing threats, offering advanced security.
+CryptGuard is a Rust-based command-line tool for encryption and decryption, leveraging the post-quantum Kyber1024 algorithm. It's designed to protect files and messages from quantum-computing threats, offering advanced security.
 
 ## Prerequisites
-Before installing RustCryptGuard, your system should have:
+Before installing CryptGuard, your system should have:
 - Rust and Cargo (latest stable version)
 - Tokio runtime environment
 
 ## Installation
-To install RustCryptGuard, follow these steps:
+To install CryptGuard, follow these steps:
 1. Clone the GitHub repository:
    ```bash
-   git clone https://github.com/mm9942/RustCryptGuard.git
+   git clone https://github.com/mm9942/CryptGuard.git
    ```
-2. Navigate to the RustCryptGuard directory:
+2. Navigate to the CryptGuard directory:
    ```bash
-   cd RustCryptGuard
+   cd CryptGuard
    ```
 3. Compile the project using Cargo:
    ```bash
@@ -24,7 +24,7 @@ To install RustCryptGuard, follow these steps:
    ```
 
 ## Usage
-RustCryptGuard is accessed through the `crypt_guard` command-line interface. Key commands include:
+CryptGuard is accessed through the `crypt_guard` command-line interface. Key commands include:
 1. **List Keyfiles**:
    ```bash
    crypt_guard -l
@@ -43,7 +43,7 @@ RustCryptGuard is accessed through the `crypt_guard` command-line interface. Key
    ```
 
 ## Dependencies
-RustCryptGuard relies on the following dependencies as specified in `cargo.toml`:
+CryptGuard relies on the following dependencies as specified in `cargo.toml`:
 - `aes`: Version 0.8.3 for AES encryption.
 - `clap`: Version 4.4.18 for parsing command-line arguments, with `cargo` and `derive` features.
 - `env`: Version 0.0.0.
@@ -58,4 +58,4 @@ RustCryptGuard relies on the following dependencies as specified in `cargo.toml`
 - `tokio`: Version 1.35.1 with the `full` feature for asynchronous programming.
 
 ## License
-RustCryptGuard is licensed under the GNU GENERAL PUBLIC LICENSE Version 3. The full license text can be found in the `LICENSE` file in the repository.
+CryptGuard is licensed under the GNU GENERAL PUBLIC LICENSE Version 3. The full license text can be found in the `LICENSE` file in the repository.
