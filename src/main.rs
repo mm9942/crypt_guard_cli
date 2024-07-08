@@ -1,626 +1,717 @@
-mod utils;
-
-use crate::utils::list_keyfiles;
-use crypt_guard_sign::{Sign, SignDilithium};
-use crypt_guard_kyber::*;
-use crypt_guard::generate_nonce;
-use std::{
-    path::{Path, PathBuf},
-    fs,
-    io,
-};
-use pqcrypto_kyber::kyber1024::{decapsulate, encapsulate, self};
-use pqcrypto_dilithium::dilithium5;
-use pqcrypto_falcon::falcon1024;
+use clap::{arg, Arg, ArgAction, Command};
+use std::{path::PathBuf, fmt, fs::{File, self}, io::Write};
+use ::crypt_guard::{*, error::*, KDF::*};
 use hex;
-use pqcrypto_traits::{
-    kem::{PublicKey, SecretKey, SharedSecret, Ciphertext},
-    sign
-};
-use tokio;
-use dirs::home_dir;
-pub use clap::{
-    self,
-    Arg,
-    Command,
-    arg,
-    Parser,
-    command,
-    builder::OsStr,
-    ArgAction
-};
 
 #[derive(Debug)]
-struct File;
-
-pub enum KeyTypes {
-    All,
-    PublicKey,
-    SecretKey,
-    SharedSecret,
-    Ciphertext,
+enum CryptGuardError {
+    IoError(std::io::Error),
+    ParseError(String),
+    CryptError(CryptError),
 }
 
-impl File {
-    pub async fn load(path: PathBuf, file_type: KeyTypes) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        let file_content = fs::read_to_string(&path)?;
+impl From<std::io::Error> for CryptGuardError {
+    fn from(error: std::io::Error) -> Self {
+        CryptGuardError::IoError(error)
+    }
+}
 
-        let (start_label, end_label) = match file_type {
-            KeyTypes::PublicKey => ("-----BEGIN PUBLIC KEY-----\n", "\n-----END PUBLIC KEY-----"),
-            KeyTypes::SecretKey => ("-----BEGIN SECRET KEY-----\n", "\n-----END SECRET KEY-----"),
-            KeyTypes::SharedSecret => ("-----BEGIN SHARED SECRET-----\n", "\n-----END SHARED SECRET-----"),
-            KeyTypes::Ciphertext => ("-----BEGIN CIPHERTEXT-----\n", "\n-----END CIPHERTEXT-----"),
-            KeyTypes::All => unreachable!(),
-        };
+impl From<CryptError> for CryptGuardError {
+    fn from(error: CryptError) -> Self {
+        CryptGuardError::CryptError(error)
+    }
+}
 
-        let start = file_content.find(start_label);
-        let end = file_content.rfind(end_label);
-
-        let start = start.ok_or("Start label not found")?;
-        let end = end.ok_or("End label not found")?;
-
-        let content = &file_content[start + start_label.len()..end];
-        Ok(hex::decode(content)?)
+impl fmt::Display for CryptGuardError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CryptGuardError::IoError(err) => write!(f, "I/O Error: {}", err),
+            CryptGuardError::ParseError(err) => write!(f, "Parse Error: {}", err),
+            CryptGuardError::CryptError(err) => write!(f, "Cryptographic Error: {}", err),
+        }
     }
 }
 
 
-async fn cli() -> Command {
+#[derive(Debug, PartialEq)]
+enum KeyTypes {
+    Falcon1024,
+    Falcon512,
+    Kyber1024,
+    Kyber768,
+    Kyber512,
+    Dilithium5,
+    Dilithium3,
+    Dilithium2,
+}
+
+impl fmt::Display for KeyTypes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                KeyTypes::Falcon1024 => "falcon1024",
+                KeyTypes::Falcon512 => "falcon512",
+                KeyTypes::Kyber1024 => "kyber1024",
+                KeyTypes::Kyber768 => "kyber768",
+                KeyTypes::Kyber512 => "kyber512",
+                KeyTypes::Dilithium5 => "dilithium5",
+                KeyTypes::Dilithium3 => "dilithium3",
+                KeyTypes::Dilithium2 => "dilithium2",
+            }
+        )
+    }
+}
+
+impl KeyTypes {
+    fn from_str(input: &str) -> Result<Self, CryptError> {
+        match input.to_lowercase().as_str() {
+            "falcon1024" => Ok(KeyTypes::Falcon1024),
+            "falcon512" => Ok(KeyTypes::Falcon512),
+            "kyber1024" => Ok(KeyTypes::Kyber1024),
+            "kyber768" => Ok(KeyTypes::Kyber768),
+            "kyber512" => Ok(KeyTypes::Kyber512),
+            "dilithium5" => Ok(KeyTypes::Dilithium5),
+            "dilithium3" => Ok(KeyTypes::Dilithium3),
+            "dilithium2" => Ok(KeyTypes::Dilithium2),
+            _ => Err(CryptError::new(format!("Invalid algorithm: {}", input).as_str())),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum SignatureType {
+    SignedData,
+    Detached,
+}
+
+impl fmt::Display for SignatureType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SignatureType::SignedData => "signeddata",
+                SignatureType::Detached => "detached",
+            }
+        )
+    }
+}
+
+impl SignatureType {
+    fn from_str(input: &str) -> Result<Self, CryptError> {
+        match input.to_lowercase().as_str() {
+            "signeddata" => Ok(SignatureType::SignedData),
+            "detached" => Ok(SignatureType::Detached),
+            _ => Err(CryptError::new(format!("Invalid algorithm: {}", input).as_str())),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum SymmetricAlgorithm {
+    AES,
+    XChaCha20,
+}
+
+impl fmt::Display for SymmetricAlgorithm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SymmetricAlgorithm::AES => "aes",
+                SymmetricAlgorithm::XChaCha20 => "xchacha20",
+            }
+        )
+    }
+}
+
+impl SymmetricAlgorithm {
+    fn from_str(input: &str) -> Result<Self, CryptError> {
+        match input.to_lowercase().as_str() {
+            "aes" => Ok(SymmetricAlgorithm::AES),
+            "xchacha20" => Ok(SymmetricAlgorithm::XChaCha20),
+            _ => Err(CryptError::new(format!("Invalid algorithm: {}", input).as_str())),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum SignatureAlgorithm {
+    Falcon,
+    Dilithium,
+}
+
+impl fmt::Display for SignatureAlgorithm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                SignatureAlgorithm::Falcon => "falcon",
+                SignatureAlgorithm::Dilithium => "dilithium",
+            }
+        )
+    }
+}
+
+impl SignatureAlgorithm {
+    fn from_str(input: &str) -> Result<Self, CryptError> {
+        match input.to_lowercase().as_str() {
+            "falcon" => Ok(SignatureAlgorithm::Falcon),
+            "dilithium" => Ok(SignatureAlgorithm::Dilithium),
+            _ => Err(CryptError::new(format!("Invalid algorithm: {}", input).as_str())),
+        }
+    }
+}
+
+fn applet_commands() -> [Command; 2] {
+    [
+        Command::new("detached")
+            .about("Verify a detached signature")
+            .arg(
+                arg!(-i --input <INPUT>)
+                    .required(true)
+                    .help("Path to the input file or message"),
+            )
+            .arg(
+                arg!(-s --signature <SIGNATURE>)
+                    .required(true)                    
+                    .value_parser(clap::value_parser!(PathBuf))
+                    .help("Path to the detached signature file"),
+            )
+            .arg(
+                arg!(-k --key <KEY>)
+                    .required(true)                    
+                    .value_parser(clap::value_parser!(PathBuf))
+                    .help("Public key for verification"),
+            )
+            .arg(
+                arg!(-K --keysize <KEYSIZE>)
+                    .required(true)
+                    .value_parser(clap::value_parser!(usize))
+                    .help("Size of the key in bits"),
+            )
+            .arg(
+                arg!(-a --algorithm <ALGORITHM>)
+                    .required(true)
+                    .help("Specify the verification algorithm (e.g., falcon1024, dilithium5)"),
+            ),
+        Command::new("signed")
+            .about("Verify a signed message or file")
+            .arg(
+                arg!(-i --input <INPUT>)
+                    .required(true)                    
+                    .value_parser(clap::value_parser!(PathBuf))
+                    .help("Path to the signed input file or message"),
+            )
+            .arg(
+                arg!(-k --key <KEY>)
+                    .required(true)
+                    .value_parser(clap::value_parser!(PathBuf))
+                    .help("Public key for verification"),
+            )
+            .arg(
+                arg!(-K --keysize <KEYSIZE>)
+                    .required(true)
+                    .value_parser(clap::value_parser!(usize))
+                    .help("Size of the key in bits"),
+            )
+            .arg(
+                arg!(-a --algorithm <ALGORITHM>)
+                    .required(true)
+                    .help("Specify the verification algorithm (e.g., falcon1024, dilithium5)"),
+            ),
+    ]
+}
+
+fn main() {
+    let matches = build_cli().get_matches();
+    parse_cli(matches);
+}
+
+fn build_cli() -> Command {
     Command::new("crypt_guard")
-        .about("A post-quantum encryption tool")
-        //.long_about("A command-line tool for post-quantum encryption using Kyber1024")
-        .author("mm29942, mm29942@pm.me")
-        .display_name("PostQuantum Encrypt")
-        .arg(arg!(-l --list "List all saved keyfiles.").action(ArgAction::SetTrue).required(false))
+        .about("A CLI tool for cryptographic operations")
+        .subcommand_required(true)
+        .arg_required_else_help(true)
+        .version("1.0")
+        .author("mm29942 <mm29942@cryptguard.org>")
+        
         .subcommand(
             Command::new("keygen")
-                .about("Create new encryption keys")
-                .short_flag('k')
-                .long_flag("key")
-                .arg(arg!(-e --enc "Create the keys required for encryption and decryption.").action(ArgAction::SetTrue))
-                .arg(arg!(-s --sig "Create the keys required for signature handling.").action(ArgAction::SetTrue))
-                .arg(arg!(-d --dilithium  "Create the keys required for signature handling. But specially for the dilithium algorithm!").action(ArgAction::SetTrue))
-                .arg(arg!(-n --name <NAME> "Set the keyname you want to use").required(true))
-                .arg(arg!(-p --path <PATH> "Set the path to save the keyfiles into.").required(false).default_value(".CryptGuardKeys/"))
+                .about("Generate a new key pair")
+                .arg(
+                    arg!(-a --algorithm <ALGORITHM>)
+                        .required(true)
+                        .help("Specify the algorithm (e.g., kyber1024, falcon1024, dilithium5)"),
+                )
+                .arg(
+                    arg!(-d --directory <DIR>)
+                        .required(true)
+                        .value_parser(clap::value_parser!(PathBuf))
+                        .help("Directory to save the keys"),
+                ),
+        )
+        
+        .subcommand(
+            Command::new("encrypt")
+                .about("Encrypt a message or file")
+                .arg(
+                    arg!(-i --input <INPUT>)
+                        .required(true)
+                        .help("Path to the input file or message"),
+                )
+                .arg(
+                    arg!(-o --output <OUTPUT>)
+                        .required(true)
+                        .help("Path to save the encrypted output"),
+                )
+                .arg(
+                    arg!(-k --key <KEY>)
+                        .required(true)
+                        .value_parser(clap::value_parser!(PathBuf))
+                        .help("Public key for encryption"),
+                )
+                .arg(
+                    arg!(-K --keysize <KEYSIZE>)
+                        .required(true)
+                        .value_parser(clap::value_parser!(usize))
+                        .help("Size of the key in bits"),
+                )
+                .arg(
+                    arg!(-p --passphrase <PASSPHRASE>)
+                        .help("Passphrase for encryption (optional)"),
+                )
+                .arg(
+                    arg!(-a --algorithm <ALGORITHM>)
+                        .required(true)
+                        .help("Specify the encryption algorithm (e.g., aes, xchacha20)"),
+                )
+                .arg(
+                    arg!(-m --message)
+                        .action(ArgAction::SetTrue)
+                        .help("Indicates that the input is a message string rather than a file"),
+                ),
+        )
+        
+        .subcommand(
+            Command::new("decrypt")
+                .about("Decrypt a message or file")
+                .arg(
+                    arg!(-i --input <INPUT>)
+                        .required(true)
+                        .help("Path to the encrypted input file or message"),
+                )
+                .arg(
+                    arg!(-o --output <OUTPUT>)
+                        .required(true)
+                        .help("Path to save the decrypted output"),
+                )
+                .arg(
+                    arg!(-k --key <KEY>)
+                        .required(true)
+                        .value_parser(clap::value_parser!(PathBuf))
+                        .help("Secret key for decryption"),
+                )
+                .arg(
+                    arg!(-K --keysize <KEYSIZE>)
+                        .required(true)
+                        .value_parser(clap::value_parser!(usize))
+                        .help("Size of the key in bits"),
+                )
+                .arg(
+                    arg!(-c --cipher <CIPHER>)
+                        .required(true)
+                        .value_parser(clap::value_parser!(PathBuf))
+                        .help("Ciphertext for decryption"),
+                )
+                .arg(
+                    arg!(-p --passphrase <PASSPHRASE>)
+                        .help("Passphrase for decryption (if used during encryption)"),
+                )
+                .arg(
+                    arg!(-a --algorithm <ALGORITHM>)
+                        .required(true)
+                        .help("Specify the decryption algorithm (e.g., aes, xchacha20)"),
+                )
+                .arg(
+                    arg!(-n --nonce <NONCE>)
+                        .help("Nonce for decryption (required for xchacha20)"),
+                ),
+        )
+        
+        .subcommand(
+            Command::new("sign")
+                .about("Sign a message or file")
+                .arg(
+                    arg!(-i --input <INPUT>)
+                        .required(true)
+                        .help("Path to the input file or message"),
+                )
+                .arg(
+                    arg!(-o --output <OUTPUT>)
+                        .required(true)
+                        .help("Path to save the signature"),
+                )
+                .arg(
+                    arg!(-k --key <KEY>)
+                        .required(true)
+                        .value_parser(clap::value_parser!(PathBuf))
+                        .help("Secret key for signing"),
+                )
+                .arg(
+                    arg!(-K --keysize <KEYSIZE>)
+                        .required(true)
+                        .value_parser(clap::value_parser!(usize))
+                        .help("Size of the key in bits"),
+                )
+                .arg(
+                    arg!(-a --algorithm <ALGORITHM>)
+                        .required(true)
+                        .help("Specify the signing algorithm (e.g., falcon, dilithium)"),
+                )
+                .arg(
+                    arg!(-t --type <ALGORITHM>)
+                        .required(true)
+                        .help("Specify the signing variant (detached or signeddata)"),
+                )
+                .arg(
+                    arg!(-m --message)
+                        .action(ArgAction::SetTrue)
+                        .help("Indicates that the input is a message string rather than a file"),
+                ),
         )
         .subcommand(
-            Command::new("Process")
-                .short_flag('P')
-                .long_flag("process")
-                .about("En-/ Decrypt or Sign/ Verify a file (or folder)")
-                .subcommand(
-                    Command::new("encrypt")
-                        .short_flag('e')
-                        .long_flag("enc")
-                        .about("Encrypt a file, message or DataDrive using the public key")
-                        .arg(arg!(-p --passphrase <PASSPHRASE> "Passphrase to sign the encrypted data").required(true))
-                        .arg(arg!(-i --ident <IDENT> "Path to the public key file for encryption").required(false))
-                        .arg(arg!(-f --file <FILE> "Select the file you want to encrypt.").required(false).conflicts_with("message"))
-                        .arg(arg!(-m --message <MESSAGE> "Define the message you want to encrypt.").required(false).conflicts_with("file"))
-
-                        .arg(arg!(-s --save "Save encrypted message as file.").required(false).action(ArgAction::SetTrue).conflicts_with("file"))
-                        .arg(arg!(-d --dir <DIR> "Select the directory for saving, when non selected, file is safed at same directory as targed.").required(false).conflicts_with("file"))
-                )
-                .subcommand(
-                    Command::new("decrypt")
-                        .short_flag('d')
-                        .long_flag("dec")
-                        .about("Decrypt encrypted files, messages or DataDrive using the secret key and the ciphertext")
-                        .arg(arg!(-p --passphrase <PASSPHRASE> "Passphrase to verify encryption key").required(true))
-                        .arg(arg!(-n --nonce <NONCE> "Nonce generated to encrypt the data.").required(false))
-                        .arg(arg!(-i --ident <IDENT> "Path to the secret key file for decryption").required(true))
-                        .arg(arg!(-c --ciphertext <CIPHERTEXT> "Select the ciphertext which is needed to retrieve the shared secret").required(true))
-                        .arg(arg!(-f --file <FILE> "Select the file you want to decrypt.").required(false).conflicts_with("message"))
-                        .arg(arg!(-m --message <MESSAGE> "Define the message you want to decrypt.").required(false).conflicts_with("file"))
-                )
-
-                .subcommand(
-                    Command::new("sign")
-                        .short_flag('s')
-                        .long_flag("sign")
-                        .about("Create the signature of a file, folder or message using the secret key.")
-                        //.arg(arg!(-p --passphrase <PASSPHRASE> "Passphrase to derive encryption key").required(false))
-                        .arg(arg!(-i --ident <IDENT> "Path to the secret key file for signing").required(false))
-                        .arg(arg!(-f --file <FILE> "Select the file (or folder) you want to create the signature from.").required(false).conflicts_with("message"))
-                        .arg(arg!(-m --message <MESSAGE> "Define the message you want to create the signature from.").required(false).conflicts_with("file"))
-
-                        .arg(arg!(-s --save "Save signature of message as file.").required(false).action(ArgAction::SetTrue).conflicts_with("file"))
-                        .arg(arg!(-d --dir <DIR> "Select the directory for saving, when non selected, file is safed at same directory as targed.").required(false).conflicts_with("file"))
-                
-                )
-                .subcommand(
-                    Command::new("verify")
-                        .short_flag('v')
-                        .long_flag("verify")
-                        .about("Verify the signature of a file, folder or message using the public key of the person who signed it.")
-                        //.arg(arg!(-p --passphrase <PASSPHRASE> "Passphrase to derive encryption key").required(true))
-                        .arg(arg!(-i --ident <IDENT> "Path to the public key file for encryption").required(false))
-                        .arg(arg!(-s --signature <SIGNATURE> "Select the you used to safe the signature.").required(false))
-                        .arg(arg!(-f --file <FILE> "Select the file you want to decrypt.").required(false).conflicts_with("message"))
-                        .arg(arg!(-m --message <MESSAGE> "The message signature you want.").required(false).conflicts_with("file"))
-                )
-                .arg(arg!(-A --Alternative "If selected at en-/decryption XChaCha20 will as algorithm be used, and for signing/ verification, dilithium will be used instead of falcon.").required(false))
-        ).to_owned()
+            Command::new("verify")
+                .about("Verify a signature")
+                .arg_required_else_help(true)
+                .subcommand_value_name("APPLET")
+                .subcommand_help_heading("APPLET TYPES")
+                .subcommands(applet_commands()),
+        )
 }
-async fn check() -> Result<(), Box<dyn std::error::Error>> {
-    let matches = cli().await.get_matches();
 
-    let mut keychain = Keychain::new().unwrap();
+fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
     match matches.subcommand() {
         Some(("keygen", sub_matches)) => {
-            let name = sub_matches.get_one::<String>("name").map(|s| s.as_str()).unwrap();
-            let path = sub_matches.get_one::<String>("path");
-            let mut home = home_dir().unwrap();
+            let algorithm = sub_matches.get_one::<String>("algorithm").expect("required");
+            let directory = sub_matches.get_one::<PathBuf>("directory").expect("required");
+            println!("Generating key pair with algorithm {} in directory {:?}", algorithm, directory);
 
-            let directory = if let Some(p) = path {
-                if p.trim().is_empty() {
-                    ".CryptGuardKeys/"
-                } else {
-                    p
-                }
-            } else {
-                ".CryptGuardKeys/"
-            };
-            
-            let _ = home.push(".CryptGuardKeys/");
-            if !home.exists() {
-                fs::create_dir_all(&home).unwrap();
-            }
+            match KeyTypes::from_str(algorithm.as_str()) {
+                Ok(keytype) => {
+                    let (public, secret) = match keytype {
+                        KeyTypes::Falcon1024 => Ok(FalconKeypair!(1024)),
+                        KeyTypes::Falcon512 => Ok(FalconKeypair!(512)),
+                        KeyTypes::Kyber1024 => Ok(KyberKeypair!(1024)),
+                        KeyTypes::Kyber768 => Ok(KyberKeypair!(768)),
+                        KeyTypes::Kyber512 => Ok(KyberKeypair!(512)),
+                        KeyTypes::Dilithium5 => Ok(DilithiumKeypair!(5)),
+                        KeyTypes::Dilithium3 => Ok(DilithiumKeypair!(3)),
+                        KeyTypes::Dilithium2 => Ok(DilithiumKeypair!(2)),
+                        _ => Err(CryptError::new("Keygen failed!"))
+                    }.expect("Keygen failed!");
 
-            if sub_matches.get_flag("enc") {
-                let _ = keychain.save_keys(&directory, &name).await;
-                //list_keyfiles().await.unwrap();
-                return Ok(());
-            }
-            if sub_matches.get_flag("sig") {
-                let mut sign = Sign::new().unwrap();
-                let _ = sign.save_keys(&directory, &name).await;
-                //list_keyfiles().await.unwrap();
-                return Ok(());
+                    let dir_name = directory.file_name().expect("Directory should have a name").to_str().expect("Invalid directory name");
+                    let public_key_path = directory.join(format!("{}.pub", dir_name));
+                    let secret_key_path = directory.join(format!("{}.sec", dir_name));
 
-                if sub_matches.get_flag("dilithium") {
-                    let mut sign = SignDilithium::new().unwrap();
-                    let target_path = directory;
-                    let _ = sign.save_keys(&directory, &name).await;
-                    //list_keyfiles().await.unwrap();
-                    return Ok(());
-                }
-            }
-        },
-        Some(("Process", sub_matches)) => {
-            let sub_subcommand = &sub_matches.subcommand();
-            let algorithm: bool = sub_matches.get_flag("Alternative");
+                    // Create the directory if it does not exist
+                    std::fs::create_dir_all(directory).expect("Failed to create directories");
 
-            let save: bool = match sub_subcommand {
-                Some(("save", save_subcommand)) => true,
-                _ => false
-            };
-
-            match sub_subcommand {
-                Some(("encrypt", encrypt_matches)) => {
-                    let encrypt = Encrypt::new(); 
-
-                    let pub_key = PathBuf::from(encrypt_matches.get_one::<String>("ident").map(|s| s.as_str()).unwrap());
-                    let public_key = keychain.load_public_key(pub_key.clone()).await.unwrap();
-                    let (shared_secret, ciphertext) = kyber1024::encapsulate(&public_key);
-
-                    let ciphertext_path = Keychain::generate_unique_filename(format!("{}/{}", &pub_key.parent().unwrap().display(), &pub_key.file_stem().unwrap().to_string_lossy()).as_str(), "ct");
-
-                    let _ = fs::write(
-                        &ciphertext_path, 
-                        format!(
-                            "-----BEGIN CIPHERTEXT-----\n{}\n-----END CIPHERTEXT-----",
-                            hex::encode(&ciphertext.as_bytes())
-                        )
-                    );
-
-                    let pass = encrypt_matches.get_one::<String>("passphrase").map(|s| s.as_str()).unwrap().as_bytes();
-                    let message_option = encrypt_matches.get_one::<String>("message");
-                    let file_option = encrypt_matches.get_one::<String>("file");
-
-                    if algorithm {
-                        let nonce = Some(generate_nonce());
-                        match (message_option, file_option) {
-                            (Some(message), _) if !message.is_empty() => {
-                                if let Some(nonce) = nonce {
-                                    let encrypted_data = encrypt.encrypt_msg_xchacha20(message, &shared_secret, &nonce, pass).await.unwrap();
-                                    let encrypted_hex = hex::encode(&encrypted_data);
-                                    println!("Encrypted message: {:?}", &encrypted_hex);
-
-                                    if encrypt_matches.get_flag("save") {
-                                        let dir_option = encrypt_matches.get_one::<String>("dir");
-                                        let file_option = encrypt_matches.get_one::<String>("file");
-
-                                        match dir_option {
-                                            Some(dir) if !dir.is_empty() => {
-                                                let dir_path = PathBuf::from(dir);
-                                                let file_path = match file_option {
-                                                    Some(file_name) if !file_name.is_empty() => dir_path.join(file_name),
-                                                    _ => dir_path.join("message.enc"),
-                                                };
-
-                                                if !dir_path.exists() {
-                                                    fs::create_dir_all(&dir_path).unwrap();
-                                                }
-
-                                                fs::write(&file_path, &encrypted_data).unwrap();
-                                                println!("Encrypted message saved to {:?}", file_path);
-                                            },
-                                            _ => println!("Directory not specified or is empty, encrypted message not saved."),
-                                        }
-                                    }
-                                } else {
-                                    println!("Nonce not provided for xchacha20 encryption.");
-                                }
-                            },
-
-
-                            (_, Some(file)) if !file.is_empty() => {
-                                if let Some(nonce) = nonce {
-                                    let encrypted_data = encrypt.encrypt_file_xchacha20(PathBuf::from(&file), &shared_secret, &nonce, pass).await.unwrap();
-
-                                  if encrypt_matches.get_flag("save") {
-                                        let dir_option = encrypt_matches.get_one::<String>("dir");
-                                        let file_path = match dir_option {
-                                            Some(dir) if !dir.is_empty() => {
-                                                let dir_path = PathBuf::from(dir);
-
-                                                if !dir_path.exists() {
-                                                    fs::create_dir_all(&dir_path).unwrap();
-                                                }
-                                                dir_path.join(file)
-                                            },
-                                            _ => PathBuf::from(file).with_extension("enc")
-                                        };
-
-                                        fs::write(&file_path, &encrypted_data).unwrap();
-                                        println!("Encrypted file saved to {:?}", file_path);
-                                    }
-                                } else {
-                                    println!("Nonce not provided for xchacha20 encryption.");
-                                }
-                            },
-                            (None, None) => {
-                                eprintln!("Error: Both message and file options are missing. Please provide at least one.");
-                            },
-                            _ => {
-                                eprintln!("Error: Provided message or file is empty. Please provide valid content.");
-                            }
-                        }
-                    } else {
-                        match (message_option, file_option) {
-                            (Some(message), _) if !message.is_empty() => {
-                                let encrypted_data = encrypt.encrypt_msg(message, &shared_secret, pass).await.unwrap();
-                                let encrypted_hex = hex::encode(&encrypted_data);
-                                println!("Encrypted message: {:?}", &encrypted_hex);
-
-                                if encrypt_matches.get_flag("save") {
-                                    let dir_option = encrypt_matches.get_one::<String>("dir");
-                                    let file_option = encrypt_matches.get_one::<String>("file");
-
-                                    match dir_option {
-                                        Some(dir) if !dir.is_empty() => {
-                                            let dir_path = PathBuf::from(dir);
-                                            let file_path = match file_option {
-                                                Some(file_name) if !file_name.is_empty() => dir_path.join(file_name),
-                                                _ => dir_path.join("message.enc"),
-                                            };
-
-                                            if !dir_path.exists() {
-                                                fs::create_dir_all(&dir_path).unwrap();
-                                            }
-
-                                            fs::write(&file_path, &encrypted_data).unwrap();
-                                            println!("Encrypted message saved to {:?}", file_path);
-                                        },
-                                        _ => println!("Directory not specified or is empty, encrypted message not saved."),
-                                    }
-                                }
-
-                            },
-                            (_, Some(file)) if !file.is_empty() => {
-                                let encrypted_data = encrypt.encrypt_file(PathBuf::from(&file), &shared_secret, pass).await.unwrap();
-
-                                if encrypt_matches.get_flag("save") {
-                                    let dir_option = encrypt_matches.get_one::<String>("dir");
-                                    let file_path = match dir_option {
-                                        Some(dir) if !dir.is_empty() => {
-                                            let dir_path = PathBuf::from(dir);
-
-                                            if !dir_path.exists() {
-                                                fs::create_dir_all(&dir_path).unwrap();
-                                            }
-                                            dir_path.join(file)
-                                        },
-                                        _ => PathBuf::from(file).with_extension("enc")
-                                    };
-
-                                    fs::write(&file_path, &encrypted_data).unwrap();
-                                    println!("Encrypted file saved to {:?}", file_path);
-                                }
-                           },
-                            (None, None) => {
-                                eprintln!("Error: Both message and file options are missing. Please provide at least one.");
-                                // Handle the error, possibly exiting the program or asking for input again
-                            },
-                            _ => {
-                                eprintln!("Error: Provided message or file is empty. Please provide valid content.");
-                                // Handle the case where either message or file is provided but is an empty string
-                            }
-                        }
+                    // Save the public key
+                    {
+                        let mut public_file = File::create(&public_key_path).expect("Failed to create public key file");
+                        public_file.write_all(&public).expect("Failed to write public key");
                     }
+
+                    // Save the secret key
+                    {
+                        let mut secret_file = File::create(&secret_key_path).expect("Failed to create secret key file");
+                        secret_file.write_all(&secret).expect("Failed to write secret key");
+                    }
+
+                    println!("Keys generated and saved to {} and {}", public_key_path.display(), secret_key_path.display());
+                    Ok(())
+                },
+                Err(e) => {
+                    Err(CryptError::new(format!("Error: {}", e).as_str()))
+                }
+            }
+        }
+        Some(("encrypt", sub_matches)) => {
+            let input = sub_matches.get_one::<String>("input").expect("required");
+            let output = sub_matches.get_one::<String>("output").expect("required");
+            let mut output_path = PathBuf::from(output);
+
+            let key = sub_matches.get_one::<PathBuf>("key").expect("required");
+            let keysize = sub_matches.get_one::<usize>("keysize").expect("required");
+            let passphrase = sub_matches.get_one::<String>("passphrase");
+            let algorithm_str = sub_matches.get_one::<String>("algorithm").expect("required");
+            let algorithm = SymmetricAlgorithm::from_str(algorithm_str).unwrap();
+
+            match sub_matches.get_flag("message") {
+                true => {
+                    println!("Encrypting {} to {} using {} with algorithm {} and is message: {}", input, output, key.display(), algorithm, sub_matches.get_flag("message"));
+                    let (encrypted, cipher) = match keysize {
+                        1024 => Encryption!(fs::read(key).unwrap(), 1024, input.clone().as_bytes().to_owned(), passphrase.clone().unwrap().as_str(), AES),
+                        768 => Encryption!(fs::read(key).unwrap(), 768, input.clone().as_bytes().to_owned(), passphrase.clone().unwrap().as_str(), AES),
+                        512 => Encryption!(fs::read(key).unwrap(), 512, input.clone().as_bytes().to_owned(), passphrase.clone().unwrap().as_str(), AES),
+                        _ => Err(CryptError::new("Encryption failed!"))
+                    }.expect("Encryption failed!");
+
+                    let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                    output_file.write_all(&encrypted).expect("Failed to write encrypted data");
                     
+                    let _ = output_path.set_extension("ct");
+                    let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                    output_file.write_all(&cipher).expect("Failed to write encrypted data");
+
+                    println!("Finished encryption of the message, it's saved at: {}", output_path.display());
+                    Ok(())
                 },
-                Some(("decrypt", decrypt_matches)) => {
-                    let decrypt = Decrypt::new();
+                false => {
+                    let input_path = PathBuf::from(input);
+                    let input_data = fs::read(input).unwrap();
+                    let mut output_path = PathBuf::from(output);
 
-                    let sec_key = PathBuf::from(decrypt_matches.get_one::<String>("ident").map(|s| s.as_str()).unwrap());
-                    let sk = keychain.load_secret_key(sec_key).await.unwrap();
+                    match algorithm {
+                        SymmetricAlgorithm::AES => {
+                            let (encrypted, cipher) = match keysize {
+                                1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data, passphrase.clone().unwrap().as_str(), AES),
+                                768 => Encryption!(fs::read(key).unwrap(), 768, input_data, passphrase.clone().unwrap().as_str(), AES),
+                                512 => Encryption!(fs::read(key).unwrap(), 512, input_data, passphrase.clone().unwrap().as_str(), AES),
+                                _ => Err(CryptError::new("Encryption failed!"))
+                            }.expect("Encryption failed!");
 
-                    let cipher = PathBuf::from(decrypt_matches.get_one::<String>("ciphertext").map(|s| s.as_str()).unwrap());
-                    let ct = keychain.load_ciphertext(cipher).await.unwrap();
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&encrypted).expect("Failed to write encrypted data");
 
-                    let shared_secret = decapsulate(&ct, &sk);
+                            let _ = output_path.set_extension("ct");
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&cipher).expect("Failed to write encrypted data");
 
-                    let pass = decrypt_matches.get_one::<String>("passphrase").map(|s| s.as_str()).unwrap();
-                    let message_option = decrypt_matches.get_one::<String>("message");
-                    let file_option = decrypt_matches.get_one::<String>("file");
-
-                    match (message_option, file_option) {
-                        (Some(message), _) if !message.is_empty() => {
-                            let decoded_message = hex::decode(message).unwrap();
-                            let decrypted_data = match algorithm {
-                                true => {
-                                    let nonce: &[u8; 24] = str_to_byte_24(decrypt_matches.get_one::<String>("nonce").map(|s| s.as_str()).unwrap()).unwrap();
-                                    decrypt.decrypt_msg_xchacha20(&decoded_message, &shared_secret, &nonce, pass.as_bytes(), save).await
-                                },
-                                false => decrypt.decrypt_msg(&decoded_message, &shared_secret, pass.as_bytes(), save).await,
+                            println!("Encrypting {} to {} using {} with algorithm {} has finished, the ciphertext is of size {}", input_path.display(), output_path.display(), key.display(), algorithm, cipher.len());
+                        },
+                        SymmetricAlgorithm::XChaCha20 => {
+                            let (encrypted, cipher, nonce) = match keysize {
+                                1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data, passphrase.clone().unwrap().as_str(), XChaCha20),
+                                768 => Encryption!(fs::read(key).unwrap(), 768, input_data, passphrase.clone().unwrap().as_str(), XChaCha20),
+                                512 => Encryption!(fs::read(key).unwrap(), 512, input_data, passphrase.clone().unwrap().as_str(), XChaCha20),
+                                _ => todo!(),
                             };
-                            match decrypted_data {
-                                Ok(data) => {
-                                    return Ok(());
-                                },
-                                Err(err) => {
-                                    eprintln!("Error decrypting message: {:?}", err);
-                                    return Err(err.into());
-                                },
-                            }
+
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&encrypted).expect("Failed to write encrypted data");
+
+                            let _ = output_path.set_extension("ct");
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&cipher).expect("Failed to write encrypted data");
+
+                            println!("Encrypting {} to {} using {} with algorithm {} has finished, the ciphertext is of size {}. Note down the nonce: {}", input_path.display(), output_path.display(), key.display(), algorithm, cipher.len(), nonce);
                         },
-                        (_, Some(file)) if !file.is_empty() => {
-                            let decrypted_data = match algorithm {
-                                true => {
-                                    let nonce: &[u8; 24] = str_to_byte_24(decrypt_matches.get_one::<String>("nonce").map(|s| s.as_str()).unwrap()).unwrap();
-                                    decrypt.decrypt_file_xchacha20(&PathBuf::from(file), &shared_secret, &nonce, pass.as_bytes()).await
-                                },
-                                false => decrypt.decrypt_file(&PathBuf::from(file), &shared_secret, pass.as_bytes()).await,
-                            };
-                            match decrypted_data {
-                                Ok(data) => {
-                                    //println!("Decrypted file: {:?}", data);
-                                    return Ok(());
-                                },
-                                Err(err) => {
-                                    eprintln!("Error decrypting file: {:?}", err);
-                                    return Err(err.into());
-                                },
-                            }
-                        },
-                        (None, None) => {
-                            eprintln!("Error: Both message and file options are missing. Please provide at least one.");
-                        },
-                        _ => {
-                            eprintln!("Error: Provided message or file is empty. Please provide valid content.");
-                        }
-                    }
-
-                },
-                Some(("sign", sign_matches)) => {
-                    let file = sign_matches.get_one::<String>("file");
-                    let message = sign_matches.get_one::<String>("message");
-                    if algorithm {
-                        let mut sign = SignDilithium::new().unwrap();
-
-                        let sec_key: dilithium5::SecretKey = sign::SecretKey::from_bytes(&File::load(PathBuf::from(sign_matches.get_one::<String>("ident").map(|s| s.as_str()).unwrap()), KeyTypes::SecretKey).await.unwrap()).unwrap();
-                        let secret = sign.set_secret_key(sec_key).await;
-
-                        if let Some(file_path) = file {
-                            let signature = sign.sign_file(PathBuf::from(file_path)).await.unwrap();
-                            //println!("Signed file saved to: {:?}", signature);
-                        } else if let Some(message) = message {
-                            let signature = sign.sign_msg(message.as_bytes()).await.unwrap();
-
-                            println!(
-                                "Message Signature: {}",
-                                hex::encode(signature)
-                            );     
-
-                            if sign_matches.get_flag("save") {
-                                let dir_option = sign_matches.get_one::<String>("dir");
-
-                                match dir_option {
-                                    Some(dir) if !dir.is_empty() => {
-                                        let mut dir_path = PathBuf::from(dir);
-
-                                        if !dir_path.exists() {
-                                            fs::create_dir_all(&dir_path).unwrap();
-                                        }
-
-                                        dir_path.push("message.enc");
-
-                                        fs::write(&dir_path, &signature).unwrap();
-                                        println!("Signed message saved to {:?}", dir_path);
-                                    },
-                                    _ => {
-                                        let mut dir_path = home_dir().unwrap();
-                                        dir_path.push("message.enc");
-                                        fs::write(&dir_path, &signature).unwrap()
-                                    },
-                                }
-                            }
-                        } else {
-                            println!("No file or message provided for signing.");
-                        }
-                    } else {
-                        let mut sign = Sign::new().unwrap();
-
-                        let sec_key: falcon1024::SecretKey = sign::SecretKey::from_bytes(&File::load(PathBuf::from(sign_matches.get_one::<String>("ident").map(|s| s.as_str()).unwrap()), KeyTypes::SecretKey).await.unwrap()).unwrap();
-                        let secret = sign.set_secret_key(sec_key).await;
-
-                        if let Some(file_path) = file {
-                            let signature = sign.sign_file(PathBuf::from(file_path)).await.unwrap();
-                            //println!("Signed file saved to: {:?}", signature);
-                        } else if let Some(message) = message {let signature = sign.sign_msg(message.as_bytes()).await.unwrap();
-                            println!(
-                                "Message Signature: {}",
-                                hex::encode(signature)
-                            );     
-
-                            if sign_matches.get_flag("save") {
-                                let dir_option = sign_matches.get_one::<String>("dir");
-
-                                match dir_option {
-                                    Some(dir) if !dir.is_empty() => {
-                                        let mut dir_path = PathBuf::from(dir);
-
-                                        if !dir_path.exists() {
-                                            fs::create_dir_all(&dir_path).unwrap();
-                                        }
-
-                                        dir_path.push("message.enc");
-
-                                        fs::write(&dir_path, &signature).unwrap();
-                                        println!("Signed message saved to {:?}", dir_path);
-                                    },
-                                    _ => {
-                                        let mut dir_path = home_dir().unwrap();
-                                        dir_path.push("message.enc");
-                                        fs::write(&dir_path, &signature).unwrap()
-                                    },
-                                }
-                            }
-                        } else {
-                            println!("No file or message provided for signing.");
-                        }
+                        _ => todo!(),
                     };
+                    Ok(())
                 }
+            }
+        }
+        Some(("decrypt", sub_matches)) => {
+            let input = sub_matches.get_one::<String>("input").expect("required");
+            let output = sub_matches.get_one::<String>("output").expect("required");
 
-                Some(("verify", verify_matches)) => {
-                    let file = verify_matches.get_one::<String>("file");
-                    let sign_path = verify_matches.get_one::<String>("signature");
-                    let message = verify_matches.get_one::<String>("message");
-                    if algorithm {
-                        let mut sign = SignDilithium::new().unwrap();
+            let key = sub_matches.get_one::<PathBuf>("key").expect("required");
+            let keysize = sub_matches.get_one::<usize>("keysize").expect("required");
+            let cipher_path = sub_matches.get_one::<PathBuf>("cipher").expect("required");
+            let cipher = fs::read(cipher_path).unwrap();
 
-                        let pub_key: dilithium5::PublicKey = sign::PublicKey::from_bytes(&File::load(PathBuf::from(verify_matches.get_one::<String>("ident").map(|s| s.as_str()).unwrap()), KeyTypes::PublicKey).await.unwrap()).unwrap();
-                        let public = sign.set_public_key(pub_key).await;
+            let passphrase = sub_matches.get_one::<String>("passphrase");
+            let algorithm_str = sub_matches.get_one::<String>("algorithm").expect("required");
+            let algorithm: SymmetricAlgorithm = SymmetricAlgorithm ::from_str(algorithm_str).unwrap();
 
-                        if let Some(file_path) = file {
-                            let file = fs::read(PathBuf::from(file_path)).unwrap();
+            let nonce = sub_matches.get_one::<String>("nonce");
 
-                            let sign_file = fs::read(PathBuf::from(sign_path.map(|s| s.as_str()).unwrap())).unwrap();
-                            let signature: dilithium5::DetachedSignature = sign::DetachedSignature::from_bytes(&sign_file).unwrap();
-                            sign.set_signature(signature).await;
+            println!("Decrypting {} to {} using {} with algorithm {}", input, output, key.display(), algorithm);
+            
+            let input_path = PathBuf::from(input);
+            let input_data = fs::read(input).unwrap();
+            let mut output_path = PathBuf::from(output);
 
-                            let verification = sign.verify_detached(file.as_slice()).await;
-                            println!("\nverified file: {}", verification.unwrap());
-                        } else if let Some(message) = message {
-                            let verification = sign.verify_msg(message.as_bytes()).await.unwrap();
-                            println!("\nverified message: {:?}", verification);
-                        } else {
-                            println!("No file or message provided for signing.");
-                        }
-                    } else {
-                        let mut sign = Sign::new().unwrap();
+            let decrypted = match algorithm {
+                SymmetricAlgorithm::AES => match keysize {
+                    1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data, passphrase.clone().unwrap().as_str(), cipher, AES),
+                    768 => Decryption!(fs::read(key).unwrap(), 768, input_data, passphrase.clone().unwrap().as_str(), cipher, AES),
+                    512 => Decryption!(fs::read(key).unwrap(), 512, input_data, passphrase.clone().unwrap().as_str(), cipher, AES),
+                    _ => Err(CryptError::new("Decryption failed!"))
+                },
+                SymmetricAlgorithm::XChaCha20 => {
+                    let nonce = nonce.expect("Nonce is required for XChaCha20");
+                    match keysize {
+                        1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data, passphrase.clone().unwrap().as_str(), cipher, Some(nonce.to_string()), XChaCha20),
+                        768 => Decryption!(fs::read(key).unwrap(), 768, input_data, passphrase.clone().unwrap().as_str(), cipher, Some(nonce.to_string()), XChaCha20),
+                        512 => Decryption!(fs::read(key).unwrap(), 512, input_data, passphrase.clone().unwrap().as_str(), cipher, Some(nonce.to_string()), XChaCha20),
+                        _ => Err(CryptError::new("Decryption failed!"))
+                    }
+                },
+            }.expect("Decryption failed!");
 
-                        let pub_key: falcon1024::PublicKey = sign::PublicKey::from_bytes(&File::load(PathBuf::from(verify_matches.get_one::<String>("ident").map(|s| s.as_str()).unwrap()), KeyTypes::PublicKey).await.unwrap()).unwrap();
-                        let public = sign.set_public_key(pub_key).await;
+            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+            output_file.write_all(&decrypted).expect("Failed to write decrypted data");
 
-                        if let Some(file_path) = file {
-                            let file = fs::read(PathBuf::from(file_path)).unwrap();
+            println!("Finished decryption of: {}", input_path.display());     
+            Ok(())
+        }
+        Some(("sign", sub_matches)) => {
+            use ::crypt_guard::KDF::*;
+            let input = sub_matches.get_one::<String>("input").expect("required");
+            let output = sub_matches.get_one::<String>("output").expect("required");
+            let mut output_path = PathBuf::from(output);
 
-                            let sign_file = fs::read(PathBuf::from(sign_path.map(|s| s.as_str()).unwrap())).unwrap();
-                            let signature: falcon1024::DetachedSignature = sign::DetachedSignature::from_bytes(&sign_file).unwrap();
-                            sign.set_signature(signature).await;
+            let key = sub_matches.get_one::<PathBuf>("key").expect("required");
+            let keysize = sub_matches.get_one::<usize>("keysize").expect("required");
+            let algorithm_str = sub_matches.get_one::<String>("algorithm").expect("required");
+            let algorithm = SignatureAlgorithm::from_str(algorithm_str).expect("");
 
-                            let verification = sign.verify_detached(file.as_slice()).await;
-                            println!("\nverified file: {}", verification.unwrap());
-                        } else if let Some(message) = message {
-                            let verification = sign.verify_msg(message.as_bytes()).await.unwrap();
-                            println!("\nverified message: {:?}", verification);
-                        } else {
-                            println!("No file or message provided for signing.");
-                        }
-                    };
+            let type_str = sub_matches.get_one::<String>("type").expect("required");
+            let r#type = SignatureType::from_str(type_str).unwrap();
 
+            let signature = match sub_matches.get_flag("message") {
+                true => {
+                    let key_data = fs::read(key).unwrap();
+
+                    match r#type {
+                        SignatureType::SignedData => {
+                            match algorithm {
+                                SignatureAlgorithm::Falcon => {
+                                    match keysize {
+                                        1024 => Signature!(Falcon, key_data, 1024, input.as_bytes().to_owned(), Message),
+                                        512 => Signature!(Falcon, key_data, 512, input.as_bytes().to_owned(), Message),
+                                        _ => return Err(CryptError::new("Signing Failed!")),
+                                    }
+                                },
+                                SignatureAlgorithm::Dilithium => {
+                                    match keysize {
+                                        5 => Signature!(Dilithium, key_data, 5, input.as_bytes().to_owned(), Message),
+                                        3 => Signature!(Dilithium, key_data, 3, input.as_bytes().to_owned(), Message),
+                                        2 => Signature!(Dilithium, key_data, 2, input.as_bytes().to_owned(), Message),
+                                        _ => return Err(CryptError::new("Signing Failed!")),
+                                    }
+                                },
+                                _ => return Err(CryptError::new("Signing Failed!")),
+                            }
+                        },
+                        SignatureType::Detached => {
+                            match algorithm {
+                                SignatureAlgorithm::Falcon => {
+                                    match keysize {
+                                        1024 => Signature!(Falcon, key_data, 1024, input.as_bytes().to_owned(), Detached),
+                                        512 => Signature!(Falcon, key_data, 512, input.as_bytes().to_owned(), Detached),
+                                        _ => return Err(CryptError::new("Signing Failed!")),
+                                    }
+                                },
+                                SignatureAlgorithm::Dilithium => {
+                                    match keysize {
+                                        5 => Signature!(Dilithium, key_data, 5, input.as_bytes().to_owned(), Detached),
+                                        3 => Signature!(Dilithium, key_data, 3, input.as_bytes().to_owned(), Detached),
+                                        2 => Signature!(Dilithium, key_data, 2, input.as_bytes().to_owned(), Detached),
+                                        _ => return Err(CryptError::new("Signing Failed!")),
+                                    }
+                                },
+                                _ => return Err(CryptError::new("Signing Failed!")),
+                            }
+                        },
+                    }
+                },
+                false => {
+                    let input_data = fs::read(input).unwrap();
+                    let key_data = fs::read(key).unwrap();
+
+                    match r#type {
+                        SignatureType::SignedData => {
+                            match algorithm {
+                                SignatureAlgorithm::Falcon => {
+                                    match keysize {
+                                        1024 => Signature!(Falcon, key_data, 1024, input_data, Message),
+                                        512 => Signature!(Falcon, key_data, 512, input_data, Message),
+                                        _ => return Err(CryptError::new("Signing Failed!")),
+                                    }
+                                },
+                                SignatureAlgorithm::Dilithium => {
+                                    match keysize {
+                                        5 => Signature!(Dilithium, key_data, 5, input_data, Message),
+                                        3 => Signature!(Dilithium, key_data, 3, input_data, Message),
+                                        2 => Signature!(Dilithium, key_data, 2, input_data, Message),
+                                        _ => return Err(CryptError::new("Signing Failed!")),
+                                    }
+                                },
+                                _ => return Err(CryptError::new("Signing Failed!")),
+                            }
+                        },
+                        SignatureType::Detached => {
+                            match algorithm {
+                                SignatureAlgorithm::Falcon => {
+                                    match keysize {
+                                        1024 => Signature!(Falcon, key_data, 1024, input_data, Detached),
+                                        512 => Signature!(Falcon, key_data, 512, input_data, Detached),
+                                        _ => return Err(CryptError::new("Signing Failed!")),
+                                    }
+                                },
+                                SignatureAlgorithm::Dilithium => {
+                                    match keysize {
+                                        5 => Signature!(Dilithium, key_data, 5, input_data, Detached),
+                                        3 => Signature!(Dilithium, key_data, 3, input_data, Detached),
+                                        2 => Signature!(Dilithium, key_data, 2, input_data, Detached),
+                                        _ => return Err(CryptError::new("Signing Failed!")),
+                                    }
+                                },
+                                _ => return Err(CryptError::new("Signing Failed!")),
+                            }
+                        },
+                    }
+                }
+            };
+            match signature {
+                sig => {
+                    fs::write(output_path, sig).unwrap();
+                    println!("Signing {} to {} using {} with algorithm {}", input, output, key.display(), algorithm);
+                    Ok(())
                 },
                 _ => {
-                    println!("Invalid file operation. Please check the help for correct usage.");
+                    return Err(CryptError::new("Signing Failed!"))
                 }
             }
-        },
-        _ => println!("Invalid command. Please check the help for correct usage."),
-    }
-
-    if matches.get_flag("list") {
-        list_keyfiles().await.unwrap();
-        return Ok(());
-    }
-    Ok(())
-}
-
-fn str_to_byte_24(input_str: &str) -> Result<&[u8; 24], &'static str> {
-    let bytes = input_str.as_bytes();
-    
-    if bytes.len() == 24 {
-        match bytes.try_into() {
-            Ok(array) => Ok(array),
-            Err(_) => Err("Failed to convert slice to array"),
         }
-    } else {
-        Err("Input string is not 24 bytes long")
-    }
-}
+        Some(("verify", sub_matches)) => {
+            let subcommand = sub_matches.subcommand();
 
-#[tokio::main]
-pub async fn main() {
-    let _ = check().await;
-}
+            match subcommand {
+                Some(("Detached", cmd)) => {                    
+                    let input = cmd.get_one::<String>("input").expect("required");
+                    let signature = cmd.get_one::<String>("signature").expect("required");
+                    let key = cmd.get_one::<PathBuf>("key").expect("required");
+                    let algorithm_str = cmd.get_one::<String>("algorithm").expect("required");
+                    let algorithm = KeyTypes::from_str(algorithm_str.as_str()).unwrap();
 
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-    use crypt_guard::*;
-    use pqcrypto_kyber::kyber1024::{decapsulate, encapsulate, self};
-    use pqcrypto_traits::kem::{PublicKey, SecretKey, SharedSecret, Ciphertext};
-    use hex;
-    use tokio;
+                    println!("Verifying detached signature for {} with signature {} using {} with algorithm {}", input, signature, key.display(), algorithm);
+                    
+                }
+                Some(("SignedData", cmd)) => {                    
+                    let input = cmd.get_one::<String>("input").expect("required");
+                    let key = cmd.get_one::<PathBuf>("key").expect("required");
+                    let algorithm_str = cmd.get_one::<String>("algorithm").expect("required");
+                    let algorithm = SignatureType::from_str(algorithm_str.as_str()).unwrap();
 
-    #[tokio::test]
-    async fn file_works() {
-        let mut keychain = Keychain::new().unwrap();
-        let data = PathBuf::from("target/Cargo.toml.enc");
-        let decrypt = Decrypt::new();
+                    println!("Verifying signed data for {} using {} with algorithm {}", input, key.display(), algorithm);
+                    
+                }
+                _ => unreachable!(),
+            }
+            Ok(())
+        }
+        _ => unreachable!(),
 
-        let ct = keychain.load_ciphertext(PathBuf::from(".CryptGuardKeys/key/key_5.ct")).await.unwrap();
-        let sk = keychain.load_secret_key(PathBuf::from(".CryptGuardKeys/key/key.sec")).await.unwrap();
-        let shared_secret: kyber1024::SharedSecret = decapsulate(&ct, &sk);
-        let pass = "Ai#31415926535*";
-
-        let decrypt_msg = decrypt.decrypt_file(&data, &shared_secret, pass.as_bytes()).await.unwrap();
-    }
-    #[tokio::test]
-    async fn message_works() {
-        let mut keychain = Keychain::new().unwrap();
-        let data = hex::decode("bcf42d637a3b415b276cbbbb9aa28c4cb050de1fb7de44fba66ce74a4f8d5499cf5e83bac37c8033818333cc1e010494fc27471bdc423f0ba3ad4c8fe472df8573c84c52ed9ff5471905d6129b5081e8").unwrap();
-        let decrypt = Decrypt::new();
-
-        let ct = keychain.load_ciphertext(PathBuf::from(".CryptGuardKeys/key/key_2.ct")).await.unwrap();
-        let sk = keychain.load_secret_key(PathBuf::from(".CryptGuardKeys/key/key.sec")).await.unwrap();
-        let shared_secret: kyber1024::SharedSecret = decapsulate(&ct, &sk);
-        let pass = b"Ai#31415926535*";
-
-        let decrypt_msg = decrypt.decrypt_msg(&data, &shared_secret, pass, false).await.unwrap();
-        println!("{}", decrypt_msg);
-        assert_eq!("Cargo.toml.enc", decrypt_msg);
     }
 }
