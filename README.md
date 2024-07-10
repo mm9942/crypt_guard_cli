@@ -1,61 +1,37 @@
-# CryptGuard
 
-## Introduction
-CryptGuard is a Rust-based command-line tool for encryption and decryption, leveraging the post-quantum Kyber1024 algorithm. It's designed to protect files and messages from quantum-computing threats, offering advanced security.
+### KeyGen commands
+#### **Falcon key generation** size: 1024 (available: 1024, 512)
+`./target/debug/crypt_guard keygen -a Falcon1024 -d test/falcon_keys`
 
-## Prerequisites
-Before installing CryptGuard, your system should have:
-- Rust and Cargo (latest stable version)
-- Tokio runtime environment
+#### **Dilithium key generation** size: 5 (available: 5, 3, 2)
+`./target/debug/crypt_guard keygen -a Dilithium5 -d test/dilithium_keys`
 
-## Installation
-To install CryptGuard, follow these steps:
-1. Clone the GitHub repository:
-   ```bash
-   git clone https://github.com/mm9942/CryptGuard.git
-   ```
-2. Navigate to the CryptGuard directory:
-   ```bash
-   cd CryptGuard
-   ```
-3. Compile the project using Cargo:
-   ```bash
-   cargo build --release
-   ```
+#### **Kyber key generation** size: 1024 (available: 1024, 768, 512) 
+`./target/debug/crypt_guard keygen -a Kyber1024 -d test/kyber_keys`
 
-## Usage
-CryptGuard is accessed through the `crypt_guard` command-line interface. Key commands include:
-1. **List Keyfiles**:
-   ```bash
-   crypt_guard -l
-   ```
-2. **Generate New Encryption Keys**:
-   ```bash
-   crypt_guard new -n [keyname] -p [path]
-   ```
-3. **Encrypt Data**:
-   ```bash
-   crypt_guard encrypt --pass [passphrase] -p [public key file path] -f [file path] -m [message]
-   ```
-4. **Decrypt Data**:
-   ```bash
-   crypt_guard decrypt --pass [passphrase] -s [secret key file path] -c [ciphertext path] -f [file path] -m [message]
-   ```
+### Creation of detached signature
+#### **Create Detached Signature** 
+`./target/debug/crypt_guard sign --type detached -i test/Cargo.lock -a falcon -k test/falcon_keys/falcon_keys.sec -K 1024 -o test/Files/detached/Cargo.toml.sig`
 
-## Dependencies
-CryptGuard relies on the following dependencies as specified in `cargo.toml`:
-- `aes`: Version 0.8.3 for AES encryption.
-- `clap`: Version 4.4.18 for parsing command-line arguments, with `cargo` and `derive` features.
-- `env`: Version 0.0.0.
-- `hex`: Version 0.4.3 for handling hexadecimal values.
-- `hmac`: Version 0.12.1 for Hash-based Message Authentication Code support.
-- `pqcrypto`: Version 0.17.0 with serialization feature for post-quantum cryptography.
-- `pqcrypto-kyber`: Version 0.8.0 with serialization feature for the Kyber1024 algorithm.
-- `pqcrypto-traits`: Version 0.3.5.
-- `sha2`: Version 0.10.8 for SHA-256 hashing.
-- `tempdir`: Version 0.3.7 for creating temporary directories.
-- `tempfile`: Version 3.9.0 for managing temporary files.
-- `tokio`: Version 1.35.1 with the `full` feature for asynchronous programming.
+#### **Verify Detached Signature** 
+`./target/debug/crypt_guard verify detached -i test/Files/detached/Cargo.toml.sig -a falcon -k test/falcon_keys/falcon_keys.pub -K 1024 -s test/Files/detached/Cargo.lock.sig`
 
-## License
-CryptGuard is licensed under the MIT LICENSE. The full license text can be found in the `LICENSE` file in the repository.
+### Creating Signed data
+#### **Signing Data** 
+`./target/debug/crypt_guard sign --type signed -i  test/Cargo.lock -a falcon -k falcon_keys/falcon_keys.sec -K 1024 -o test/Files/signed/Cargo.lock.sig`
+
+#### **Opening Signed Data**  `./target/debug/crypt_guard verify signed -o test/Files/signed/Cargo.lock -a falcon -k falcon_keys/falcon_keys.pub -K 1024 -i test/Files/signed/Cargo.lock.sig`
+
+### Encryption using AES
+#### **Encryption** 
+`./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/AES/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a AES`
+
+#### **Decryption** 
+`./target/debug/crypt_guard decrypt -i test/Files/AES/enc/Cargo.lock.enc -o test/Files/AES/dec/Cargo.lock -c test/Files/AES/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a AES`
+
+### Encryption using XChaCha20
+#### **Encryption** 
+`./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/XChaCha20/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a XChaCha20`
+#### **Decryption** 
+`./target/debug/crypt_guard decrypt -i test/Files/XChaCha20/enc/Cargo.lock.enc -o test/Files/XChaCha20/dec/Cargo.lock -c test/Files/XChaCha20/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a XChaCha20 -n="54643ed8ce9d454690b0d6263de59159fb1826f75043c19e"`
+**please regard that XChaCha returns a nonce that is not automatically saved and needs to be noted down!**

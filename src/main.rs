@@ -1,6 +1,7 @@
+use std::path::Path;
 use clap::{arg, Arg, ArgAction, Command};
 use std::{path::PathBuf, fmt, fs::{File, self}, io::Write};
-use ::crypt_guard::{*, error::*, KDF::*};
+use ::crypt_guard::{*, error::*};
 use hex;
 
 #[derive(Debug)]
@@ -102,8 +103,16 @@ impl fmt::Display for SignatureType {
 impl SignatureType {
     fn from_str(input: &str) -> Result<Self, CryptError> {
         match input.to_lowercase().as_str() {
+            "sign" => Ok(SignatureType::SignedData),
+            "signed" => Ok(SignatureType::SignedData),
             "signeddata" => Ok(SignatureType::SignedData),
+            "signed_data" => Ok(SignatureType::SignedData),
+
             "detached" => Ok(SignatureType::Detached),
+            "detachedsignature" => Ok(SignatureType::Detached),
+            "detached_signature" => Ok(SignatureType::Detached),
+            "detachedsign" => Ok(SignatureType::Detached),
+            "detached_sign" => Ok(SignatureType::Detached),
             _ => Err(CryptError::new(format!("Invalid algorithm: {}", input).as_str())),
         }
     }
@@ -167,6 +176,14 @@ impl SignatureAlgorithm {
     }
 }
 
+fn is_path(input: &str) -> Result<PathBuf, &str> {
+    if Path::new(input).exists() {
+        Ok(PathBuf::from(input))
+    } else {
+        Err("Not a valid path")
+    }
+}
+
 fn applet_commands() -> [Command; 2] {
     [
         Command::new("detached")
@@ -178,13 +195,13 @@ fn applet_commands() -> [Command; 2] {
             )
             .arg(
                 arg!(-s --signature <SIGNATURE>)
-                    .required(true)                    
+                    .required(true)
                     .value_parser(clap::value_parser!(PathBuf))
                     .help("Path to the detached signature file"),
             )
             .arg(
                 arg!(-k --key <KEY>)
-                    .required(true)                    
+                    .required(true)
                     .value_parser(clap::value_parser!(PathBuf))
                     .help("Public key for verification"),
             )
@@ -203,9 +220,15 @@ fn applet_commands() -> [Command; 2] {
             .about("Verify a signed message or file")
             .arg(
                 arg!(-i --input <INPUT>)
-                    .required(true)                    
+                    .required(true)
                     .value_parser(clap::value_parser!(PathBuf))
                     .help("Path to the signed input file or message"),
+            )
+            .arg(
+                arg!(-o --output <OUTPUT>)
+                    .required(true)
+                    .value_parser(clap::value_parser!(PathBuf))
+                    .help("Path to save the output"),
             )
             .arg(
                 arg!(-k --key <KEY>)
@@ -229,7 +252,7 @@ fn applet_commands() -> [Command; 2] {
 
 fn main() {
     let matches = build_cli().get_matches();
-    parse_cli(matches);
+    let _ = parse_cli(matches);
 }
 
 fn build_cli() -> Command {
@@ -239,7 +262,7 @@ fn build_cli() -> Command {
         .arg_required_else_help(true)
         .version("1.0")
         .author("mm29942 <mm29942@cryptguard.org>")
-        
+
         .subcommand(
             Command::new("keygen")
                 .about("Generate a new key pair")
@@ -255,7 +278,7 @@ fn build_cli() -> Command {
                         .help("Directory to save the keys"),
                 ),
         )
-        
+
         .subcommand(
             Command::new("encrypt")
                 .about("Encrypt a message or file")
@@ -296,7 +319,7 @@ fn build_cli() -> Command {
                         .help("Indicates that the input is a message string rather than a file"),
                 ),
         )
-        
+
         .subcommand(
             Command::new("decrypt")
                 .about("Decrypt a message or file")
@@ -342,7 +365,7 @@ fn build_cli() -> Command {
                         .help("Nonce for decryption (required for xchacha20)"),
                 ),
         )
-        
+
         .subcommand(
             Command::new("sign")
                 .about("Sign a message or file")
@@ -394,9 +417,17 @@ fn build_cli() -> Command {
         )
 }
 
+fn create_parent_dir(path: &Path) -> Result<(), std::io::Error> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    Ok(())
+}
+
 fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
     match matches.subcommand() {
         Some(("keygen", sub_matches)) => {
+            use ::crypt_guard::KDF::*;
             let algorithm = sub_matches.get_one::<String>("algorithm").expect("required");
             let directory = sub_matches.get_one::<PathBuf>("directory").expect("required");
             println!("Generating key pair with algorithm {} in directory {:?}", algorithm, directory);
@@ -448,7 +479,7 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
             let mut output_path = PathBuf::from(output);
 
             let key = sub_matches.get_one::<PathBuf>("key").expect("required");
-            let keysize = sub_matches.get_one::<usize>("keysize").expect("required");
+            let key_size = sub_matches.get_one::<usize>("keysize").expect("required");
             let passphrase = sub_matches.get_one::<String>("passphrase");
             let algorithm_str = sub_matches.get_one::<String>("algorithm").expect("required");
             let algorithm = SymmetricAlgorithm::from_str(algorithm_str).unwrap();
@@ -456,17 +487,21 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
             match sub_matches.get_flag("message") {
                 true => {
                     println!("Encrypting {} to {} using {} with algorithm {} and is message: {}", input, output, key.display(), algorithm, sub_matches.get_flag("message"));
-                    let (encrypted, cipher) = match keysize {
+                    let (encrypted, cipher) = match key_size {
                         1024 => Encryption!(fs::read(key).unwrap(), 1024, input.clone().as_bytes().to_owned(), passphrase.clone().unwrap().as_str(), AES),
                         768 => Encryption!(fs::read(key).unwrap(), 768, input.clone().as_bytes().to_owned(), passphrase.clone().unwrap().as_str(), AES),
                         512 => Encryption!(fs::read(key).unwrap(), 512, input.clone().as_bytes().to_owned(), passphrase.clone().unwrap().as_str(), AES),
                         _ => Err(CryptError::new("Encryption failed!"))
                     }.expect("Encryption failed!");
 
+                    // Create the parent directory if it does not exist
+                    create_parent_dir(&output_path).expect("Failed to create parent directory");
+
                     let mut output_file = File::create(&output_path).expect("Failed to create output file");
                     output_file.write_all(&encrypted).expect("Failed to write encrypted data");
-                    
+
                     let _ = output_path.set_extension("ct");
+                    create_parent_dir(&output_path).expect("Failed to create parent directory");
                     let mut output_file = File::create(&output_path).expect("Failed to create output file");
                     output_file.write_all(&cipher).expect("Failed to write encrypted data");
 
@@ -475,39 +510,48 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
                 },
                 false => {
                     let input_path = PathBuf::from(input);
-                    let input_data = fs::read(input).unwrap();
                     let mut output_path = PathBuf::from(output);
 
                     match algorithm {
                         SymmetricAlgorithm::AES => {
-                            let (encrypted, cipher) = match keysize {
-                                1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data, passphrase.clone().unwrap().as_str(), AES),
-                                768 => Encryption!(fs::read(key).unwrap(), 768, input_data, passphrase.clone().unwrap().as_str(), AES),
-                                512 => Encryption!(fs::read(key).unwrap(), 512, input_data, passphrase.clone().unwrap().as_str(), AES),
+                            let input_data = fs::read(input).unwrap();
+                            let (encrypted, cipher) = match key_size {
+                                1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), AES),
+                                768 => Encryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), AES),
+                                512 => Encryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), AES),
                                 _ => Err(CryptError::new("Encryption failed!"))
                             }.expect("Encryption failed!");
+
+                            // Create the parent directory if it does not exist
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
 
                             let mut output_file = File::create(&output_path).expect("Failed to create output file");
                             output_file.write_all(&encrypted).expect("Failed to write encrypted data");
 
                             let _ = output_path.set_extension("ct");
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
                             let mut output_file = File::create(&output_path).expect("Failed to create output file");
                             output_file.write_all(&cipher).expect("Failed to write encrypted data");
 
                             println!("Encrypting {} to {} using {} with algorithm {} has finished, the ciphertext is of size {}", input_path.display(), output_path.display(), key.display(), algorithm, cipher.len());
                         },
                         SymmetricAlgorithm::XChaCha20 => {
-                            let (encrypted, cipher, nonce) = match keysize {
-                                1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data, passphrase.clone().unwrap().as_str(), XChaCha20),
-                                768 => Encryption!(fs::read(key).unwrap(), 768, input_data, passphrase.clone().unwrap().as_str(), XChaCha20),
-                                512 => Encryption!(fs::read(key).unwrap(), 512, input_data, passphrase.clone().unwrap().as_str(), XChaCha20),
+                            let input_data = fs::read(input).unwrap();
+                            let (encrypted, cipher, nonce) = match key_size {
+                                1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), XChaCha20),
+                                768 => Encryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), XChaCha20),
+                                512 => Encryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), XChaCha20),
                                 _ => todo!(),
                             };
+
+                            // Create the parent directory if it does not exist
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
 
                             let mut output_file = File::create(&output_path).expect("Failed to create output file");
                             output_file.write_all(&encrypted).expect("Failed to write encrypted data");
 
                             let _ = output_path.set_extension("ct");
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
                             let mut output_file = File::create(&output_path).expect("Failed to create output file");
                             output_file.write_all(&cipher).expect("Failed to write encrypted data");
 
@@ -524,9 +568,8 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
             let output = sub_matches.get_one::<String>("output").expect("required");
 
             let key = sub_matches.get_one::<PathBuf>("key").expect("required");
-            let keysize = sub_matches.get_one::<usize>("keysize").expect("required");
+            let key_size = sub_matches.get_one::<usize>("keysize").expect("required");
             let cipher_path = sub_matches.get_one::<PathBuf>("cipher").expect("required");
-            let cipher = fs::read(cipher_path).unwrap();
 
             let passphrase = sub_matches.get_one::<String>("passphrase");
             let algorithm_str = sub_matches.get_one::<String>("algorithm").expect("required");
@@ -535,43 +578,47 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
             let nonce = sub_matches.get_one::<String>("nonce");
 
             println!("Decrypting {} to {} using {} with algorithm {}", input, output, key.display(), algorithm);
-            
+
             let input_path = PathBuf::from(input);
             let input_data = fs::read(input).unwrap();
-            let mut output_path = PathBuf::from(output);
+            let output_path = PathBuf::from(output);
 
             let decrypted = match algorithm {
-                SymmetricAlgorithm::AES => match keysize {
-                    1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data, passphrase.clone().unwrap().as_str(), cipher, AES),
-                    768 => Decryption!(fs::read(key).unwrap(), 768, input_data, passphrase.clone().unwrap().as_str(), cipher, AES),
-                    512 => Decryption!(fs::read(key).unwrap(), 512, input_data, passphrase.clone().unwrap().as_str(), cipher, AES),
+                SymmetricAlgorithm::AES => match key_size {
+                    1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), AES),
+                    768 => Decryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), AES),
+                    512 => Decryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), AES),
                     _ => Err(CryptError::new("Decryption failed!"))
                 },
                 SymmetricAlgorithm::XChaCha20 => {
                     let nonce = nonce.expect("Nonce is required for XChaCha20");
-                    match keysize {
-                        1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data, passphrase.clone().unwrap().as_str(), cipher, Some(nonce.to_string()), XChaCha20),
-                        768 => Decryption!(fs::read(key).unwrap(), 768, input_data, passphrase.clone().unwrap().as_str(), cipher, Some(nonce.to_string()), XChaCha20),
-                        512 => Decryption!(fs::read(key).unwrap(), 512, input_data, passphrase.clone().unwrap().as_str(), cipher, Some(nonce.to_string()), XChaCha20),
+                    match key_size {
+                        1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.to_string()), XChaCha20),
+                        768 => Decryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.to_string()), XChaCha20),
+                        512 => Decryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.to_string()), XChaCha20),
                         _ => Err(CryptError::new("Decryption failed!"))
                     }
                 },
             }.expect("Decryption failed!");
 
+            // Create the parent directory if it does not exist
+            create_parent_dir(&output_path).expect("Failed to create parent directory");
+
             let mut output_file = File::create(&output_path).expect("Failed to create output file");
             output_file.write_all(&decrypted).expect("Failed to write decrypted data");
 
-            println!("Finished decryption of: {}", input_path.display());     
+            println!("Finished decryption of: {}", input_path.display());
             Ok(())
         }
         Some(("sign", sub_matches)) => {
             use ::crypt_guard::KDF::*;
             let input = sub_matches.get_one::<String>("input").expect("required");
             let output = sub_matches.get_one::<String>("output").expect("required");
-            let mut output_path = PathBuf::from(output);
+            let output_path = PathBuf::from(output);
 
             let key = sub_matches.get_one::<PathBuf>("key").expect("required");
-            let keysize = sub_matches.get_one::<usize>("keysize").expect("required");
+
+            let key_size = sub_matches.get_one::<usize>("keysize").expect("required");
             let algorithm_str = sub_matches.get_one::<String>("algorithm").expect("required");
             let algorithm = SignatureAlgorithm::from_str(algorithm_str).expect("");
 
@@ -586,17 +633,17 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
                         SignatureType::SignedData => {
                             match algorithm {
                                 SignatureAlgorithm::Falcon => {
-                                    match keysize {
-                                        1024 => Signature!(Falcon, key_data, 1024, input.as_bytes().to_owned(), Message),
-                                        512 => Signature!(Falcon, key_data, 512, input.as_bytes().to_owned(), Message),
+                                    match key_size {
+                                        1024 => Signature!(Falcon, key_data.to_owned(), 1024, input.as_bytes().to_owned(), Message),
+                                        512 => Signature!(Falcon, key_data.to_owned(), 512, input.as_bytes().to_owned(), Message),
                                         _ => return Err(CryptError::new("Signing Failed!")),
                                     }
                                 },
                                 SignatureAlgorithm::Dilithium => {
-                                    match keysize {
-                                        5 => Signature!(Dilithium, key_data, 5, input.as_bytes().to_owned(), Message),
-                                        3 => Signature!(Dilithium, key_data, 3, input.as_bytes().to_owned(), Message),
-                                        2 => Signature!(Dilithium, key_data, 2, input.as_bytes().to_owned(), Message),
+                                    match key_size {
+                                        5 => Signature!(Dilithium, key_data.to_owned(), 5, input.as_bytes().to_owned(), Message),
+                                        3 => Signature!(Dilithium, key_data.to_owned(), 3, input.as_bytes().to_owned(), Message),
+                                        2 => Signature!(Dilithium, key_data.to_owned(), 2, input.as_bytes().to_owned(), Message),
                                         _ => return Err(CryptError::new("Signing Failed!")),
                                     }
                                 },
@@ -606,17 +653,17 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
                         SignatureType::Detached => {
                             match algorithm {
                                 SignatureAlgorithm::Falcon => {
-                                    match keysize {
-                                        1024 => Signature!(Falcon, key_data, 1024, input.as_bytes().to_owned(), Detached),
-                                        512 => Signature!(Falcon, key_data, 512, input.as_bytes().to_owned(), Detached),
+                                    match key_size {
+                                        1024 => Signature!(Falcon, key_data.to_owned(), 1024, input.as_bytes().to_owned(), Detached),
+                                        512 => Signature!(Falcon, key_data.to_owned(), 512, input.as_bytes().to_owned(), Detached),
                                         _ => return Err(CryptError::new("Signing Failed!")),
                                     }
                                 },
                                 SignatureAlgorithm::Dilithium => {
-                                    match keysize {
-                                        5 => Signature!(Dilithium, key_data, 5, input.as_bytes().to_owned(), Detached),
-                                        3 => Signature!(Dilithium, key_data, 3, input.as_bytes().to_owned(), Detached),
-                                        2 => Signature!(Dilithium, key_data, 2, input.as_bytes().to_owned(), Detached),
+                                    match key_size {
+                                        5 => Signature!(Dilithium, key_data.to_owned(), 5, input.as_bytes().to_owned(), Detached),
+                                        3 => Signature!(Dilithium, key_data.to_owned(), 3, input.as_bytes().to_owned(), Detached),
+                                        2 => Signature!(Dilithium, key_data.to_owned(), 2, input.as_bytes().to_owned(), Detached),
                                         _ => return Err(CryptError::new("Signing Failed!")),
                                     }
                                 },
@@ -626,24 +673,24 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
                     }
                 },
                 false => {
-                    let input_data = fs::read(input).unwrap();
-                    let key_data = fs::read(key).unwrap();
+                    let input_data = &fs::read(input).unwrap();
+                    let key_data = &fs::read(key).unwrap();
 
                     match r#type {
                         SignatureType::SignedData => {
                             match algorithm {
                                 SignatureAlgorithm::Falcon => {
-                                    match keysize {
-                                        1024 => Signature!(Falcon, key_data, 1024, input_data, Message),
-                                        512 => Signature!(Falcon, key_data, 512, input_data, Message),
+                                    match key_size {
+                                        1024 => Signature!(Falcon, key_data.to_owned(), 1024, input_data.to_owned(), Message),
+                                        512 => Signature!(Falcon, key_data.to_owned(), 512, input_data.to_owned(), Message),
                                         _ => return Err(CryptError::new("Signing Failed!")),
                                     }
                                 },
                                 SignatureAlgorithm::Dilithium => {
-                                    match keysize {
-                                        5 => Signature!(Dilithium, key_data, 5, input_data, Message),
-                                        3 => Signature!(Dilithium, key_data, 3, input_data, Message),
-                                        2 => Signature!(Dilithium, key_data, 2, input_data, Message),
+                                    match key_size {
+                                        5 => Signature!(Dilithium, key_data.to_owned(), 5, input_data.to_owned(), Message),
+                                        3 => Signature!(Dilithium, key_data.to_owned(), 3, input_data.to_owned(), Message),
+                                        2 => Signature!(Dilithium, key_data.to_owned(), 2, input_data.to_owned(), Message),
                                         _ => return Err(CryptError::new("Signing Failed!")),
                                     }
                                 },
@@ -653,17 +700,17 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
                         SignatureType::Detached => {
                             match algorithm {
                                 SignatureAlgorithm::Falcon => {
-                                    match keysize {
-                                        1024 => Signature!(Falcon, key_data, 1024, input_data, Detached),
-                                        512 => Signature!(Falcon, key_data, 512, input_data, Detached),
+                                    match key_size {
+                                        1024 => Signature!(Falcon, key_data.to_owned(), 1024, input_data.to_owned(), Detached),
+                                        512 => Signature!(Falcon, key_data.to_owned(), 512, input_data.to_owned(), Detached),
                                         _ => return Err(CryptError::new("Signing Failed!")),
                                     }
                                 },
                                 SignatureAlgorithm::Dilithium => {
-                                    match keysize {
-                                        5 => Signature!(Dilithium, key_data, 5, input_data, Detached),
-                                        3 => Signature!(Dilithium, key_data, 3, input_data, Detached),
-                                        2 => Signature!(Dilithium, key_data, 2, input_data, Detached),
+                                    match key_size {
+                                        5 => Signature!(Dilithium, key_data.to_owned(), 5, input_data.to_owned(), Detached),
+                                        3 => Signature!(Dilithium, key_data.to_owned(), 3, input_data.to_owned(), Detached),
+                                        2 => Signature!(Dilithium, key_data.to_owned(), 2, input_data.to_owned(), Detached),
                                         _ => return Err(CryptError::new("Signing Failed!")),
                                     }
                                 },
@@ -675,6 +722,9 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
             };
             match signature {
                 sig => {
+                    // Create the parent directory if it does not exist
+                    create_parent_dir(&output_path).expect("Failed to create parent directory");
+
                     fs::write(output_path, sig).unwrap();
                     println!("Signing {} to {} using {} with algorithm {}", input, output, key.display(), algorithm);
                     Ok(())
@@ -684,33 +734,124 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
                 }
             }
         }
+
         Some(("verify", sub_matches)) => {
-            let subcommand = sub_matches.subcommand();
-
-            match subcommand {
-                Some(("Detached", cmd)) => {                    
+            use ::crypt_guard::KDF::*;
+            match sub_matches.subcommand() {
+                Some(("detached", cmd)) => {
                     let input = cmd.get_one::<String>("input").expect("required");
-                    let signature = cmd.get_one::<String>("signature").expect("required");
-                    let key = cmd.get_one::<PathBuf>("key").expect("required");
-                    let algorithm_str = cmd.get_one::<String>("algorithm").expect("required");
-                    let algorithm = KeyTypes::from_str(algorithm_str.as_str()).unwrap();
 
-                    println!("Verifying detached signature for {} with signature {} using {} with algorithm {}", input, signature, key.display(), algorithm);
-                    
-                }
-                Some(("SignedData", cmd)) => {                    
-                    let input = cmd.get_one::<String>("input").expect("required");
-                    let key = cmd.get_one::<PathBuf>("key").expect("required");
-                    let algorithm_str = cmd.get_one::<String>("algorithm").expect("required");
-                    let algorithm = SignatureType::from_str(algorithm_str.as_str()).unwrap();
+                    let input_data = match is_path(input) {
+                        Ok(input) => fs::read(input).unwrap(),
+                        Err(input) => input.as_bytes().to_owned(),
+                    };
 
-                    println!("Verifying signed data for {} using {} with algorithm {}", input, key.display(), algorithm);
-                    
-                }
+                    let key_size = cmd.get_one::<usize>("keysize").expect("required");
+
+                    let signature = cmd.get_one::<PathBuf>("signature").expect("required");
+                    let signature_data = fs::read(signature).unwrap();
+
+                    let key = cmd.get_one::<PathBuf>("key").expect("required");
+                    let key_data = fs::read(key).unwrap();
+
+                    let algorithm_str = cmd.get_one::<String>("algorithm").expect("required");
+                    let algorithm = SignatureAlgorithm::from_str(algorithm_str.as_str()).unwrap();
+
+                    match is_path(input) {
+                        Ok(input) => {
+                            println!(
+                                "Verifying detached signature for {} with signature {} using key {} with algorithm {}",
+                                input.display(), signature.display(), key.display(), algorithm
+                            );
+                        },
+                        Err(input) => {
+                            println!(
+                                "Verifying detached signature for {} with signature {} using key {} with algorithm {}",
+                                input, signature.display(), key.display(), algorithm
+                            );
+                        },
+                    };
+
+
+                    // Perform the verification
+                    let is_valid = match algorithm {
+                        SignatureAlgorithm::Falcon => {
+                            match key_size {
+                                1024 => Verify!(Falcon, key_data.to_owned().to_owned().to_owned(), 1024, signature_data.to_owned(), input_data.to_owned(), Detached),
+                                512 => Verify!(Falcon, key_data.to_owned().to_owned().to_owned(), 512, signature_data.to_owned(), input_data.to_owned(), Detached),
+                                _ => unreachable!(),
+                            }
+                        },
+                        SignatureAlgorithm::Dilithium => {
+                            match key_size {
+                                5 => Verify!(Dilithium, key_data.to_owned().to_owned(), 5, signature_data.to_owned(), input_data.to_owned(), Detached),
+                                3 => Verify!(Dilithium, key_data.to_owned().to_owned(), 3, signature_data.to_owned(), input_data.to_owned(), Detached),
+                                2 => Verify!(Dilithium, key_data.to_owned().to_owned(), 2, signature_data.to_owned(), input_data.to_owned(), Detached),
+                                _ => unreachable!(),
+                            }
+                        },
+                        _ => unreachable!(),
+                    };
+
+                    if is_valid {
+                        println!("Detached signature is valid.");
+                    } else {
+                        println!("Detached signature is invalid.");
+                    }
+
+                    Ok(())
+                },
+                Some(("signed", cmd)) => {
+                    let input = cmd.get_one::<PathBuf>("input").expect("required");
+                    let input_data = fs::read(input).unwrap();
+
+                    let output = cmd.get_one::<PathBuf>("output").expect("required");
+
+                    let _key = cmd.get_one::<PathBuf>("key").expect("required");
+                    let key_size = cmd.get_one::<usize>("keysize").expect("required");
+
+                    let key = cmd.get_one::<PathBuf>("key").expect("required");
+                    let key_data = fs::read(key).unwrap();
+
+                    let algorithm_str = cmd.get_one::<String>("algorithm").expect("required");
+                    let algorithm = SignatureAlgorithm::from_str(algorithm_str.as_str()).unwrap();
+
+                    println!(
+                        "Verifying signed data for {} using key {} with algorithm {}",
+                        input.display(), key.display(), algorithm
+                    );
+
+                    // Perform the verification
+                    let message = match algorithm {
+                        SignatureAlgorithm::Falcon => {
+                            match key_size {
+                                1024 => Verify!(Falcon, key_data.to_owned(), 1024, input_data.to_owned(), Message),
+                                512 => Verify!(Falcon, key_data.to_owned(), 512, input_data.to_owned(), Message),
+                                _ => unreachable!(),
+                            }
+                        },
+                        SignatureAlgorithm::Dilithium => {
+                            match key_size {
+                                5 => Verify!(Dilithium, key_data.to_owned(), 5, input_data.to_owned(), Message),
+                                3 => Verify!(Dilithium, key_data.to_owned(), 3, input_data.to_owned(), Message),
+                                2 => Verify!(Dilithium, key_data.to_owned(), 2, input_data.to_owned(), Message),
+                                _ => unreachable!(),
+                            }
+                        },
+                        _ => unreachable!(),
+                    };
+
+                    // Create the parent directory if it does not exist
+                    create_parent_dir(&output).expect("Failed to create parent directory");
+
+                    fs::write(output, message).unwrap();
+                    println!("Verifying {} to {} using {} with algorithm {}", input.display(), output.display(), key.display(), algorithm);
+
+                    Ok(())
+                },
                 _ => unreachable!(),
             }
-            Ok(())
-        }
+        },
         _ => unreachable!(),
 
     }
