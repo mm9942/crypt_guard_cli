@@ -9,6 +9,10 @@
 
 This project is based on the Rust crate `crypt_guard`. You can read more about the crate [here](https://crates.io/crates/crypt_guard).
 
+### Pre-Release
+
+This is a pre-release version, currently lacking proper error handling. The foundation is already laid and will soon integrate improved error handling and additional security features. Despite this, by following the README and CLI help, you should not encounter major issues. Currently, the highest security key types (Kyber 1024, Falcon 1024, and Dilithium 5) have been tested.
+
 ## Overview
 
 `CryptGuard CLI` is a command-line tool for cryptographic operations, including key generation, signing, verification, encryption, and decryption using various algorithms.
