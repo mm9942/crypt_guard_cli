@@ -121,7 +121,10 @@ impl SignatureType {
 #[derive(Debug, PartialEq)]
 enum SymmetricAlgorithm {
     AES,
+    AES_GCM_SIV,
+    AES_CTR,
     XChaCha20,
+    XChaCha20Poly1305
 }
 
 impl fmt::Display for SymmetricAlgorithm {
@@ -131,7 +134,10 @@ impl fmt::Display for SymmetricAlgorithm {
             "{}",
             match self {
                 SymmetricAlgorithm::AES => "aes",
+                SymmetricAlgorithm::AES_GCM_SIV => "aes_gcm_siv",
+                SymmetricAlgorithm::AES_CTR => "aes_ctr",
                 SymmetricAlgorithm::XChaCha20 => "xchacha20",
+                SymmetricAlgorithm::XChaCha20Poly1305 => "xchacha20poly1305",
             }
         )
     }
@@ -141,7 +147,10 @@ impl SymmetricAlgorithm {
     fn from_str(input: &str) -> Result<Self, CryptError> {
         match input.to_lowercase().as_str() {
             "aes" => Ok(SymmetricAlgorithm::AES),
+            "aes_gcm_siv" => Ok(SymmetricAlgorithm::AES_GCM_SIV),
+            "aes_ctr" => Ok(SymmetricAlgorithm::AES_CTR),
             "xchacha20" => Ok(SymmetricAlgorithm::XChaCha20),
+            "xchacha20poly1305" => Ok(SymmetricAlgorithm::XChaCha20Poly1305),
             _ => Err(CryptError::new(format!("Invalid algorithm: {}", input).as_str())),
         }
     }
@@ -535,12 +544,78 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
 
                             println!("Encrypting {} to {} using {} with algorithm {} has finished, the ciphertext is of size {}", input_path.display(), output_path.display(), key.display(), algorithm, cipher.len());
                         },
+                        SymmetricAlgorithm::AES_GCM_SIV => {
+                            let input_data = fs::read(input).unwrap();
+                            let (encrypted, cipher, nonce) = match key_size {
+                                1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), AES_GCM_SIV),
+                                768 => Encryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), AES_GCM_SIV),
+                                512 => Encryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), AES_GCM_SIV),
+                                _ => todo!(),
+                            };
+
+                            // Create the parent directory if it does not exist
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
+
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&encrypted).expect("Failed to write encrypted data");
+
+                            let _ = output_path.set_extension("ct");
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&cipher).expect("Failed to write encrypted data");
+
+                            println!("Encrypting {} to {} using {} with algorithm {} has finished, the ciphertext is of size {}", input_path.display(), output_path.display(), key.display(), algorithm, cipher.len());
+                        },
+                        SymmetricAlgorithm::AES_CTR => {
+                            let input_data = fs::read(input).unwrap();
+                            let (encrypted, cipher, nonce) = match key_size {
+                                1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), AES_CTR),
+                                768 => Encryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), AES_CTR),
+                                512 => Encryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), AES_CTR),
+                                _ => todo!(),
+                            };
+
+                            // Create the parent directory if it does not exist
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
+
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&encrypted).expect("Failed to write encrypted data");
+
+                            let _ = output_path.set_extension("ct");
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&cipher).expect("Failed to write encrypted data");
+
+                            println!("Encrypting {} to {} using {} with algorithm {} has finished, the ciphertext is of size {}", input_path.display(), output_path.display(), key.display(), algorithm, cipher.len());
+                        },
                         SymmetricAlgorithm::XChaCha20 => {
                             let input_data = fs::read(input).unwrap();
                             let (encrypted, cipher, nonce) = match key_size {
                                 1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), XChaCha20),
                                 768 => Encryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), XChaCha20),
                                 512 => Encryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), XChaCha20),
+                                _ => todo!(),
+                            };
+
+                            // Create the parent directory if it does not exist
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
+
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&encrypted).expect("Failed to write encrypted data");
+
+                            let _ = output_path.set_extension("ct");
+                            create_parent_dir(&output_path).expect("Failed to create parent directory");
+                            let mut output_file = File::create(&output_path).expect("Failed to create output file");
+                            output_file.write_all(&cipher).expect("Failed to write encrypted data");
+
+                            println!("Encrypting {} to {} using {} with algorithm {} has finished, the ciphertext is of size {}. Note down the nonce: {}", input_path.display(), output_path.display(), key.display(), algorithm, cipher.len(), nonce);
+                        },
+                        SymmetricAlgorithm::XChaCha20Poly1305 => {
+                            let input_data = fs::read(input).unwrap();
+                            let (encrypted, cipher, nonce) = match key_size {
+                                1024 => Encryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), XChaCha20Poly1305),
+                                768 => Encryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), XChaCha20Poly1305),
+                                512 => Encryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), XChaCha20Poly1305),
                                 _ => todo!(),
                             };
 
@@ -590,12 +665,33 @@ fn parse_cli(matches: clap::ArgMatches) -> Result<(), CryptError> {
                     512 => Decryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), AES),
                     _ => Err(CryptError::new("Decryption failed!"))
                 },
+                SymmetricAlgorithm::AES_GCM_SIV => match key_size {
+                    1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.unwrap().to_string()), AES_GCM_SIV),
+                    768 => Decryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.unwrap().to_string()), AES_GCM_SIV),
+                    512 => Decryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.unwrap().to_string()), AES_GCM_SIV),
+                    _ => Err(CryptError::new("Decryption failed!"))
+                },
+                SymmetricAlgorithm::AES_CTR => match key_size {
+                    1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.unwrap().to_string()), AES_CTR),
+                    768 => Decryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.unwrap().to_string()), AES_CTR),
+                    512 => Decryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.unwrap().to_string()), AES_CTR),
+                    _ => Err(CryptError::new("Decryption failed!"))
+                },
                 SymmetricAlgorithm::XChaCha20 => {
                     let nonce = nonce.expect("Nonce is required for XChaCha20");
                     match key_size {
                         1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.to_string()), XChaCha20),
                         768 => Decryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.to_string()), XChaCha20),
                         512 => Decryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.to_string()), XChaCha20),
+                        _ => Err(CryptError::new("Decryption failed!"))
+                    }
+                },
+                SymmetricAlgorithm::XChaCha20Poly1305 => {
+                    let nonce = nonce.expect("Nonce is required for XChaCha20");
+                    match key_size {
+                        1024 => Decryption!(fs::read(key).unwrap(), 1024, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.to_string()), XChaCha20Poly1305),
+                        768 => Decryption!(fs::read(key).unwrap(), 768, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.to_string()), XChaCha20Poly1305),
+                        512 => Decryption!(fs::read(key).unwrap(), 512, input_data.to_owned(), passphrase.clone().unwrap().as_str(), fs::read(cipher_path).unwrap(), Some(nonce.to_string()), XChaCha20Poly1305),
                         _ => Err(CryptError::new("Decryption failed!"))
                     }
                 },
