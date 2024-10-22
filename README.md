@@ -9,9 +9,19 @@
 
 This project is based on the Rust crate `crypt_guard`. You can read more about the crate [here](https://crates.io/crates/crypt_guard).
 
-### Pre-Release
+### Stable Pre-Release
 
-This is a pre-release version, currently lacking proper error handling. The foundation is already laid and will soon integrate improved error handling and additional security features. Despite this, by following the README and CLI help, you should not encounter major issues. Currently, the highest security key types (Kyber 1024, Falcon 1024, and Dilithium 5) have been tested.
+This is a pre-release version which is stable but currently lacks proper error handling. The foundation is already laid and will soon integrate improved error handling and additional security features. Despite this, by following the README and CLI help, you should not encounter major issues. Currently, the highest security key types (Kyber 1024, Falcon 1024, and Dilithium 5) have been tested. Also tested is encryption with AES, AES_GCM_SIV, AES_CTR, XChaCha20, and XChaCha20Poly1305.
+
+Note that basic AES uses ECB mode, which is the simplest mode of operation and is considered insecure because it encrypts each block of data independently. For better security, use AES_GCM_SIV or AES_CTR.
+
+Regarding the differences between AES_CTR, AES_GCM_SIV, and XChaCha20Poly1305:
+
+- **AES_CTR**: AES in Counter (CTR) mode is a symmetric key algorithm that provides confidentiality by turning a block cipher into a stream cipher. It requires careful management of the nonce to ensure security. Unlike ECB, it does not reveal data patterns, but without additional authentication, it only ensures confidentiality, not integrity. Therefore, it is recommended to pair it with an integrity check for added security.
+
+- **AES_GCM_SIV**: AES in Galois/Counter Mode (GCM-SIV) combines both encryption and authentication, offering confidentiality and data integrity. GCM-SIV is designed to be nonce-misuse resistant, which means that even if a nonce is reused by mistake, it does not compromise security as badly as traditional GCM. It is particularly useful in situations where unique nonce management is difficult.
+
+- **XChaCha20 vs XChaCha20Poly1305**: XChaCha20 focuses purely on encryption with a longer nonce, while XChaCha20-Poly1305 combines encryption with message authentication, making it a stronger choice for securing both the confidentiality and integrity of data.
 
 ## Overview
 
@@ -90,18 +100,19 @@ cargo build --release
 ```sh
 ./target/debug/crypt_guard decrypt -i test/Files/AES/enc/Cargo.lock.enc -o test/Files/AES/dec/Cargo.lock -c test/Files/AES/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a AES
 ```
+
 ### Encryption using AES_GCM_SIV
 
 #### **Encryption**
 
 ```sh
-./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/XChaCha20/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a AES_GCM_SIV
+./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/AES_GCM_SIV/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a AES_GCM_SIV
 ```
 
 #### **Decryption**
 
 ```sh
-./target/debug/crypt_guard decrypt -i test/Files/XChaCha20/enc/Cargo.lock.enc -o test/Files/XChaCha20/dec/Cargo.lock -c test/Files/XChaCha20/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a AES_GCM_SIV -n="887d90f06541bc9a1891ca1e"
+./target/debug/crypt_guard decrypt -i test/Files/AES_GCM_SIV/enc/Cargo.lock.enc -o test/Files/AES_GCM_SIV/dec/Cargo.lock -c test/Files/AES_GCM_SIV/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a AES_GCM_SIV -n="887d90f06541bc9a1891ca1e"
 ```
 
 ### Encryption using AES_CTR
@@ -109,13 +120,13 @@ cargo build --release
 #### **Encryption**
 
 ```sh
-./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/XChaCha20/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a AES_CTR
+./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/AES_CTR/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a AES_CTR
 ```
 
 #### **Decryption**
 
 ```sh
-./target/debug/crypt_guard decrypt -i test/Files/XChaCha20/enc/Cargo.lock.enc -o test/Files/XChaCha20/dec/Cargo.lock -c test/Files/XChaCha20/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a AES_CTR -n="3a4e921d25679f232fc1d8dc5317e90f"
+./target/debug/crypt_guard decrypt -i test/Files/AES_CTR/enc/Cargo.lock.enc -o test/Files/AES_CTR/dec/Cargo.lock -c test/Files/AES_CTR/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a AES_CTR -n="3a4e921d25679f232fc1d8dc5317e90f"
 ```
 
 ### Encryption using XChaCha20
@@ -137,16 +148,16 @@ cargo build --release
 #### **Encryption**
 
 ```sh
-./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/XChaCha20/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a XChaCha20Poly1305
+./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/XChaCha20Poly1305/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a XChaCha20Poly1305
 ```
 
 #### **Decryption**
 
 ```sh
-./target/debug/crypt_guard decrypt -i test/Files/XChaCha20/enc/Cargo.lock.enc -o test/Files/XChaCha20/dec/Cargo.lock -c test/Files/XChaCha20/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a XChaCha20Poly1305 -n="54643ed8ce9d454690b0d6263de59159fb1826f75043c19e"
+./target/debug/crypt_guard decrypt -i test/Files/XChaCha20Poly1305/enc/Cargo.lock.enc -o test/Files/XChaCha20Poly1305/dec/Cargo.lock -c test/Files/XChaCha20Poly1305/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a XChaCha20Poly1305 -n="54643ed8ce9d454690b0d6263de59159fb1826f75043c19e"
 ```
 
-**Please note that XChaCha20 returns a nonce that is not automatically saved and needs to be noted down!**
+**Please note that each AES_GCM_SIV, AES_CTR, XChaCha20 and XChaCha20Poly1305 return a nonce that is not automatically saved and needs to be noted down!**
 
 [blog-badge]: https://img.shields.io/badge/blog-hashnode-lightblue.svg?style=for-the-badge
 [blog-url]: https://blog.mm29942.com/
