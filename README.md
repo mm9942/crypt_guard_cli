@@ -90,6 +90,33 @@ cargo build --release
 ```sh
 ./target/debug/crypt_guard decrypt -i test/Files/AES/enc/Cargo.lock.enc -o test/Files/AES/dec/Cargo.lock -c test/Files/AES/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a AES
 ```
+### Encryption using AES_GCM_SIV
+
+#### **Encryption**
+
+```sh
+./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/XChaCha20/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a AES_GCM_SIV
+```
+
+#### **Decryption**
+
+```sh
+./target/debug/crypt_guard decrypt -i test/Files/XChaCha20/enc/Cargo.lock.enc -o test/Files/XChaCha20/dec/Cargo.lock -c test/Files/XChaCha20/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a AES_GCM_SIV -n="887d90f06541bc9a1891ca1e"
+```
+
+### Encryption using AES_CTR
+
+#### **Encryption**
+
+```sh
+./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/XChaCha20/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a AES_CTR
+```
+
+#### **Decryption**
+
+```sh
+./target/debug/crypt_guard decrypt -i test/Files/XChaCha20/enc/Cargo.lock.enc -o test/Files/XChaCha20/dec/Cargo.lock -c test/Files/XChaCha20/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a AES_CTR -n="3a4e921d25679f232fc1d8dc5317e90f"
+```
 
 ### Encryption using XChaCha20
 
@@ -103,6 +130,20 @@ cargo build --release
 
 ```sh
 ./target/debug/crypt_guard decrypt -i test/Files/XChaCha20/enc/Cargo.lock.enc -o test/Files/XChaCha20/dec/Cargo.lock -c test/Files/XChaCha20/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a XChaCha20 -n="54643ed8ce9d454690b0d6263de59159fb1826f75043c19e"
+```
+
+### Encryption using XChaCha20Poly1305
+
+#### **Encryption**
+
+```sh
+./target/debug/crypt_guard encrypt -i test/Cargo.lock -o test/Files/XChaCha20/enc/Cargo.lock.enc -K 1024 -k test/kyber_keys/kyber_keys.pub -p "keyphrase" -a XChaCha20Poly1305
+```
+
+#### **Decryption**
+
+```sh
+./target/debug/crypt_guard decrypt -i test/Files/XChaCha20/enc/Cargo.lock.enc -o test/Files/XChaCha20/dec/Cargo.lock -c test/Files/XChaCha20/enc/Cargo.lock.ct -K 1024 -k test/kyber_keys/kyber_keys.sec -p "keyphrase" -a XChaCha20Poly1305 -n="54643ed8ce9d454690b0d6263de59159fb1826f75043c19e"
 ```
 
 **Please note that XChaCha20 returns a nonce that is not automatically saved and needs to be noted down!**
